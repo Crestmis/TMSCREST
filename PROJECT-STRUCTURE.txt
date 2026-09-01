@@ -1,0 +1,41 @@
+CREST-Redesigned-UI-Final/
+├── START-CREST.bat
+├── RESET-DEMO.bat
+├── TEST-CHECKLIST.md
+├── README.md
+├── .env.example
+├── package.json
+├── index.html
+├── vite.config.js
+├── setup/
+│   └── google-apps-script/
+│       └── Code.gs
+└── src/
+    ├── App.jsx
+    ├── config.js
+    ├── index.css
+    ├── main.jsx
+    ├── components/
+    │   ├── PageHeader.jsx
+    │   ├── Sidebar.jsx
+    │   ├── StatCard.jsx
+    │   ├── TaskRow.jsx
+    │   └── Topbar.jsx
+    ├── core/
+    │   └── scoreSnapshot.js
+    ├── data/
+    │   └── demoStore.js
+    ├── pages/
+    │   ├── AssignTask.jsx
+    │   ├── Calendar.jsx
+    │   ├── Dashboard.jsx
+    │   ├── Delegation.jsx
+    │   ├── Login.jsx
+    │   ├── Reports.jsx
+    │   ├── SimplePages.jsx
+    │   └── Tasks.jsx
+    └── services/
+        ├── auth.js
+        ├── calendar.js
+        ├── sheets.js
+        └── tasks.js
