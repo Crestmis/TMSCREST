@@ -108,3 +108,58 @@ function findHeader_(headers,aliases){for(var i=0;i<headers.length;i++){var k=no
 function nextId_(sheet,type){var headers=getHeaders_(sheet),idx=findHeader_(headers,['task id','taskid']);if(idx<0)return (type==='checklist'?'C-':'D-')+Date.now();var vals=sheet.getRange(2,idx+1,Math.max(0,sheet.getLastRow()-1),1).getDisplayValues().flat(),max=1000;vals.forEach(function(v){var m=String(v).match(/^[CD]-(\d+)$/i);if(m)max=Math.max(max,Number(m[1]));});return (type==='checklist'?'C-':'D-')+(max+1);}
 function normalize_(v){return String(v==null?'':v).trim().toLowerCase().replace(/[^a-z0-9]/g,'');}
 function json_(obj){return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);}
+
+/* =====================================================================
+ * ONE-TIME SETUP
+ * Run setupSheets() once from the Apps Script editor (pick it in the
+ * function dropdown, click Run). It creates every tab CREST needs with
+ * the correct headers and a default admin login. Safe to re-run: it
+ * never overwrites existing rows or headers.
+ * ===================================================================== */
+function setupSheets(){
+  var ss=SpreadsheetApp.getActiveSpreadsheet();
+  if(!ss)throw new Error('Open this script from inside the spreadsheet: Extensions > Apps Script.');
+  var TASK_HEADERS=['Task ID','Task Description','Department','Given By','Name','Task Start Date','Task Start Time','Freq','Status','Require Attachment','Enable Reminders','Remarks','Actual Date','Actual Time','Completion Type','Responsibility Confirmed','Confirmed At'];
+  var defs={
+    'master':['Department','Name','Username','Password','Role'],
+    'Checklist':TASK_HEADERS,
+    'DELEGATION':TASK_HEADERS,
+    'ACCESS CONTROL':['Username','Page','Access'],
+    'HOLIDAYS':['Date','Occasion'],
+    'Working Day Calendar':['Working Date'],
+    'UNIQUE':['Value'],
+    'TASK HISTORY':['Task ID','Task Description','Task Type','Doer','Given By','Department','Planned Date','Planned Time','Actual Date','Actual Time','Status','Completion Type','Remarks','Submitted Date'],
+    'DELEGATION DONE':['Timestamp','Task ID','Status','Completion Type','Next Target Date','Remarks','Attachment','Submitted Date','Actual Date','Actual Time','Responsibility Confirmed','Doer','Task','Given By','Department'],
+    'HELP & SUPPORT':['Timestamp','Doer Name','Username','Department','Request Type','Priority','Subject','Details']
+  };
+  var made=[];
+  Object.keys(defs).forEach(function(name){
+    var s=ss.getSheetByName(name);
+    if(!s){s=ss.insertSheet(name);made.push(name);}
+    if(s.getLastRow()===0){
+      var h=defs[name];
+      s.getRange(1,1,1,h.length).setValues([h]).setFontWeight('bold');
+      s.setFrozenRows(1);
+    }
+  });
+  // Default admin login in `master`
+  var m=ss.getSheetByName('master'),mv=m.getDataRange().getDisplayValues(),hasAdmin=false;
+  for(var i=1;i<mv.length;i++)if(String(mv[i][2]).trim().toLowerCase()==='admin')hasAdmin=true;
+  if(!hasAdmin)m.appendRow(['Administration','Administrator','admin','admin123','admin']);
+  // Admin rows in `ACCESS CONTROL` (admins bypass this at login; kept so the matrix shows ticks)
+  var ac=ss.getSheetByName('ACCESS CONTROL'),acv=ac.getDataRange().getDisplayValues(),acHasAdmin=false;
+  for(var j=1;j<acv.length;j++)if(String(acv[j][0]).trim().toLowerCase()==='admin')acHasAdmin=true;
+  if(!acHasAdmin){
+    ['Dashboard','Checklist','Delegation','Calendar','Holidays','Reports & Score','Assign Task','Settings','History','Help & Support','Live Score','Admin Access','Master TasksList']
+      .forEach(function(p){ac.appendRow(['admin',p,'Full Access']);});
+    ac.appendRow(['admin','Task Visibility','All Tasks']);
+    ac.appendRow(['admin','Calendar Past','Allowed']);
+    ac.appendRow(['admin','Calendar Future','Allowed']);
+  }
+  // Remove the empty default "Sheet1" if it's still there
+  var blank=ss.getSheetByName('Sheet1');
+  if(blank&&blank.getLastRow()===0&&ss.getSheets().length>1)ss.deleteSheet(blank);
+  var msg='Setup complete. New tabs: '+(made.length?made.join(', '):'none (all already existed)')+'.';
+  try{ss.toast(msg,'CREST',6);}catch(e){}
+  return msg;
+}
