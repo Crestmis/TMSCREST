@@ -4,14 +4,17 @@ import PageHeader from '../components/PageHeader'
 import StatCard from '../components/StatCard'
 import TaskRow from '../components/TaskRow'
 import {fetchChecklist,fetchDelegation,visibleToUser} from '../services/tasks'
+import {localISO} from '../services/sheets'
 
 export default function Dashboard({setPage,session,refresh}){
  const [tasks,setTasks]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('')
  const load=async()=>{setLoading(true);setError('');try{const [c,d]=await Promise.all([fetchChecklist(),fetchDelegation()]);setTasks(visibleToUser([...c,...d],session))}catch(e){setError(e.message)}finally{setLoading(false)}}
  useEffect(()=>{load()},[refresh,session.username])
- const todayISO=new Date().toISOString().slice(0,10)
+ const todayISO=localISO()
  const stats=useMemo(()=>{const total=tasks.length,done=tasks.filter(t=>(t.liveStatus||t.status).toLowerCase()==='done').length,pending=tasks.filter(t=>(t.liveStatus||t.status).toLowerCase()==='pending').length,overdue=tasks.filter(t=>(t.liveStatus||t.status).toLowerCase()==='overdue').length;return {total,done,pending,overdue,score:total?Math.round(done/total*1000)/10:0}},[tasks])
- const todayTasks=tasks.filter(t=>t.plannedISO===todayISO || !t.plannedISO).slice(0,8)
+ // Today's list: open tasks planned for today, plus tasks completed today (shown only until end of the day).
+ const isFinished=t=>['done','delay'].includes(String(t.liveStatus||t.status).toLowerCase())
+ const todayTasks=tasks.filter(t=>isFinished(t)?t.actualISO===todayISO:(t.plannedISO===todayISO||!t.plannedISO)).slice(0,8)
  return <><PageHeader title={`Good morning, ${session.username}`} subtitle="Your work at a glance." action={<button className="secondary-btn" onClick={load}><RefreshCw size={15}/> Refresh</button>}/>
  <div className="stats-grid"><StatCard label="Total Tasks" value={stats.total} meta="Current visible work" accent="blue"/><StatCard label="Completed" value={stats.done} meta="Marked done" accent="green"/><StatCard label="Pending" value={stats.pending} meta="Needs attention" accent="amber"/><StatCard label="Live Score" value={`${stats.score}%`} meta="Current completion rate" accent="purple"/></div>
  {error&&<div className="error-box page-error">{error}</div>}

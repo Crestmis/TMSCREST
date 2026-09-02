@@ -20,7 +20,6 @@ export default function History({session,refresh}){
     const [c,d]=await Promise.all([fetchChecklist(),fetchDelegation()])
     h=[...c,...d]
      .filter(t=>['done','delay'].includes(String(t.status).toLowerCase()))
-     .map(t=>({...t,actual:t.raw?.['Actual Date']||t.raw?.Actual||''}))
    }
    setRows(visibleToUser(h,session))
   }catch(e){setError(e.message||'Unable to load history.')}
@@ -35,7 +34,7 @@ export default function History({session,refresh}){
   const st=String(r.status||'').toLowerCase()
   const matchQ=`${r.id} ${r.title} ${r.assignee} ${r.givenBy} ${r.status}`.toLowerCase().includes(q.toLowerCase())
   const matchStatus=statusFilter==='all'||st===statusFilter
-  const matchDate=!dateFilter||(r.plannedISO===dateFilter)||(r.actualDate===dateFilter)||(r.actual&&r.actual.includes(dateFilter))
+  const matchDate=!dateFilter||(r.plannedISO===dateFilter)||(r.actualISO===dateFilter)
   const matchDoer=doerFilter==='all'||r.assignee===doerFilter
   return matchQ&&matchStatus&&matchDate&&matchDoer
  }),[rows,q,statusFilter,dateFilter,doerFilter])
@@ -112,7 +111,7 @@ export default function History({session,refresh}){
         <th>Task Name</th>
         <th>Doer</th>
         <th>Planned</th>
-        <th>Actual</th>
+        <th>Actual Date &amp; Time</th>
         <th>Status</th>
         <th>Type</th>
        </tr>
@@ -127,9 +126,9 @@ export default function History({session,refresh}){
          </td>
          <td>{r.assignee||'—'}</td>
          <td>{r.planned||'—'}</td>
-         <td>{r.actual||r.actualDate||'—'}</td>
+         <td>{r.actual||r.actualDate||'—'}{r.actual?'':(r.actualTime?` ${r.actualTime}`:'')}</td>
          <td><span className={`status ${cls(r.status)}`}>{r.status}</span></td>
-         <td><span className="history-type-badge">{r.type}</span></td>
+         <td><span className={`history-type-badge ${String(r.type||'').toLowerCase()}`}>{r.type}</span></td>
         </tr>
        ))}
       </tbody>

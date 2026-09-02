@@ -6,7 +6,8 @@ import {
   CheckSquare,
   Square,
   CalendarDays,
-  Users
+  Users,
+  Plus
 } from 'lucide-react'
 
 import PageHeader from '../components/PageHeader'
@@ -14,18 +15,18 @@ import TaskRow from '../components/TaskRow'
 import CompletionDrawer from '../components/CompletionDrawer'
 import {
   fetchChecklist,
-  fetchDelegation,
   visibleToUser
 } from '../services/tasks'
 
-export default function Tasks({ session, refresh }) {
-  const canEdit = session?.isAdmin || ['Editor','Full Access'].includes(session?.access?.['Tasks List'])
+export default function Tasks({ session, refresh, setPage, setAssignHint }) {
+  // Anyone who can open this page (Viewer / Editor / Full Access) may select and submit tasks.
+  const checklistAccess = String(session?.access?.['Checklist'] ?? session?.access?.['Tasks List'] ?? 'None')
+  const canEdit = session?.isAdmin || (checklistAccess !== 'None' && checklistAccess !== '')
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const [q, setQ] = useState('')
-  const [type, setType] = useState('all')
   const [status, setStatus] = useState('all')
   const [doer, setDoer] = useState('all')
   const [date, setDate] = useState('')
@@ -38,14 +39,11 @@ export default function Tasks({ session, refresh }) {
     setError('')
 
     try {
-      const [c, d] = await Promise.all([
-        fetchChecklist(),
-        fetchDelegation()
-      ])
+      const checklist = await fetchChecklist()
 
       setTasks(
         visibleToUser(
-          [...c, ...d],
+          checklist,
           session
         )
       )
@@ -105,9 +103,6 @@ export default function Tasks({ session, refresh }) {
           'Pending'
 
         return (
-          (type === 'all' ||
-            t.type.toLowerCase() === type) &&
-
           (status === 'all' ||
             String(live).toLowerCase() === status) &&
 
@@ -130,7 +125,6 @@ export default function Tasks({ session, refresh }) {
   }, [
     tasks,
     q,
-    type,
     status,
     doer,
     date
@@ -142,6 +136,17 @@ export default function Tasks({ session, refresh }) {
         t.liveStatus || t.status
       ).toLowerCase() !== 'done'
   ) : []
+
+  const summary = useMemo(() => {
+    const s = { total: filtered.length, pending: 0, overdue: 0, done: 0 }
+    filtered.forEach(t => {
+      const st = String(t.liveStatus || t.status || 'Pending').toLowerCase()
+      if (st === 'done') s.done++
+      else if (st === 'overdue') s.overdue++
+      else s.pending++
+    })
+    return s
+  }, [filtered])
 
   const allSelected =
     pending.length > 0 &&
@@ -190,8 +195,8 @@ export default function Tasks({ session, refresh }) {
   return (
     <>
       <PageHeader
-        title="Tasks List"
-        subtitle={`All checklist and delegation work. Current work week: ${week.monday.toLocaleDateString(
+        title="Checklist"
+        subtitle={`All checklist work. Current work week: ${week.monday.toLocaleDateString(
           'en-IN',
           {
             day: '2-digit',
@@ -203,7 +208,7 @@ export default function Tasks({ session, refresh }) {
             day: '2-digit',
             month: 'short'
           }
-        )}. Sundays are skipped.`}
+        )}. Sundays are skipped. Delegated work is on the Delegation page.`}
         action={
           <div className="header-actions">
             <button
@@ -213,6 +218,16 @@ export default function Tasks({ session, refresh }) {
               <RefreshCw size={15} />
               Refresh
             </button>
+
+            {canEdit && setPage && (
+              <button
+                className="primary-btn"
+                onClick={() => { setAssignHint?.('checklist'); setPage('assign') }}
+              >
+                <Plus size={15} />
+                Assign Task
+              </button>
+            )}
 
             {selectedTasks.length > 0 && (
               <button
@@ -280,25 +295,6 @@ export default function Tasks({ session, refresh }) {
         </label>
 
         <select
-          value={type}
-          onChange={e =>
-            setType(e.target.value)
-          }
-        >
-          <option value="all">
-            All Types
-          </option>
-
-          <option value="checklist">
-            Checklist
-          </option>
-
-          <option value="delegation">
-            Delegation
-          </option>
-        </select>
-
-        <select
           value={status}
           onChange={e =>
             setStatus(e.target.value)
@@ -325,7 +321,6 @@ export default function Tasks({ session, refresh }) {
           className="secondary-btn"
           onClick={() => {
             setQ('')
-            setType('all')
             setStatus('all')
             setDoer('all')
             setDate('')
@@ -345,6 +340,13 @@ export default function Tasks({ session, refresh }) {
       )}
 
       <div className="panel">
+
+        <div className="delegation-summary">
+          <div><span>Visible tasks</span><b>{summary.total}</b></div>
+          <div><span>Pending</span><b>{summary.pending}</b></div>
+          <div><span>Overdue</span><b>{summary.overdue}</b></div>
+          <div><span>Done</span><b>{summary.done}</b></div>
+        </div>
 
         <div className="selection-bar">
 
@@ -399,16 +401,18 @@ export default function Tasks({ session, refresh }) {
 
       </div>
 
-      <CompletionDrawer
-        tasks={drawer}
-        onClose={() =>
-          setDrawer(null)
-        }
-        onDone={() => {
-          setDrawer(null)
-          load()
-        }}
-      />
+      {drawer && (
+        <CompletionDrawer
+          tasks={drawer}
+          onClose={() =>
+            setDrawer(null)
+          }
+          onDone={() => {
+            setDrawer(null)
+            load()
+          }}
+        />
+      )}
     </>
   )
 }

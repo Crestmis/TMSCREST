@@ -33,14 +33,15 @@ export default function LiveScore({session,refresh}){
  // Merge tasks with history actuals
  const merged=useMemo(()=>{
   const histMap={}
-  history.forEach(h=>{if(h.id)histMap[String(h.id)]={actual:h.actual||h.actualDate||'',status:String(h.status||''),completionType:h.completionType||''}})
+  history.forEach(h=>{if(h.id)histMap[String(h.id)]={actual:h.actual||h.actualDate||'',actualISO:h.actualISO||'',status:String(h.status||''),completionType:h.completionType||''}})
   return tasks.map(t=>{
    const h=histMap[String(t.id)]||{}
    return {
     ...t,
-    actual:h.actual||'',
+    actual:h.actual||t.actual||'',
+    actualISO:h.actualISO||t.actualISO||'',
     finalStatus:h.status||String(t.liveStatus||t.status||'Pending'),
-    completionType:h.completionType||''
+    completionType:h.completionType||t.completionType||''
    }
   })
  },[tasks,history])
@@ -166,7 +167,7 @@ export default function LiveScore({session,refresh}){
        <th>Given By</th>
        <th>Type</th>
        <th>Planned Date</th>
-       <th>Actual Date</th>
+       <th>Actual Date &amp; Time</th>
        <th>Status</th>
       </tr>
      </thead>
@@ -182,7 +183,7 @@ export default function LiveScore({session,refresh}){
         <td>{t.givenBy||'—'}</td>
         <td><span className={`type-badge ${String(t.type||'').toLowerCase()}`}>{t.type}</span></td>
         <td>{pretty(t.plannedISO)||t.planned||'—'}</td>
-        <td>{pretty(t.actual)||'—'}</td>
+        <td>{t.actual||'—'}</td>
         <td><span className={`status ${String(t.finalStatus||'pending').toLowerCase().replace(/\s+/g,'-')}`}>{t.finalStatus}</span></td>
        </tr>
       ))}

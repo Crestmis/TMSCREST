@@ -14,5 +14,6 @@ export const CONFIG = {
     SUPPORT: 'HELP & SUPPORT',
     UNIQUE: 'UNIQUE',
     WORKING_DAYS: 'Working Day Calendar',
+    HOLIDAYS: 'HOLIDAYS',
   },
 }

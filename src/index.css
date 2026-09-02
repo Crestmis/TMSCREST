@@ -261,3 +261,93 @@ body{background:var(--crest-bg);color:var(--crest-ink);font-family:Inter,ui-sans
 .confirm-row-no-date{background:#fafafa}
 .confirm-table th,.confirm-table td{white-space:nowrap}
 
+/* Calendar Past / Future visibility toggles */
+.calendar-view-toggles{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px}
+.cal-toggle{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--crest-border);border-radius:9px;padding:8px 12px;font-size:11px;font-weight:700;color:#52606c;cursor:pointer}
+.cal-toggle input{width:15px;height:15px;accent-color:var(--crest-orange);margin:0}
+.cal-toggle span{display:inline-flex;align-items:center;gap:5px}
+.cal-toggle.disabled{opacity:.55;cursor:not-allowed;background:#f7f8f9}
+.cal-toggle.disabled svg{color:#9aa4ad}
+.calendar-view-toggles small{color:#89939d;font-size:10px;margin-left:auto}
+.setting-toggle.disabled{opacity:.6}
+.setting-toggle.disabled i{cursor:not-allowed}
+.setting-toggle b svg{vertical-align:-1px;margin-left:4px;color:#9aa4ad}
+
+/* Logo: drop an <img> inside .brand-mark and it fills the rounded badge.
+   See UPDATE-LOGO.md. Until you do, the "C" letter still shows. */
+.brand-mark img{width:100%;height:100%;object-fit:contain;border-radius:inherit;display:block}
+.brand-mark:has(img){background:transparent}
+.calendar-actual-date{display:inline-flex;align-items:center;gap:5px;color:#347a52!important;font-weight:600}
+.cal-doer-filter{font-size:11px}
+.cal-doer-filter select{min-width:130px}
+.delegation-summary:has(>div:nth-child(4)){grid-template-columns:repeat(4,1fr)}
+@media(max-width:700px){.delegation-summary:has(>div:nth-child(4)){grid-template-columns:1fr 1fr}}
+
+/* Destructive / icon-only buttons + Master TasksList console */
+.secondary-btn.icon-only{padding:8px 9px}
+.secondary-btn.danger{color:#b3403f;border-color:#ecccca}
+.secondary-btn.danger:hover{background:#fdf1f0;border-color:#e3a9a6;color:#992e2d}
+.secondary-btn.danger:disabled,.secondary-btn.icon-only:disabled{opacity:.4;cursor:not-allowed}
+.primary-btn.danger{background:#c0413f;box-shadow:0 5px 14px rgba(192,65,63,.18)}
+.primary-btn.danger:hover{background:#a5322f}
+.mtl-table-wrap{overflow:auto}
+.mtl-table{width:100%;border-collapse:collapse;min-width:560px;font-size:11px}
+.mtl-table td:first-child{font-weight:700;white-space:nowrap}
+.mtl-remarks{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#6b7682}
+.mtl-table .type-pill{font-size:8px;padding:2px 5px}
+.mtl-table th{background:#fafbfc;color:#7b8791;text-transform:uppercase;letter-spacing:.4px;font-size:9px;text-align:left;padding:10px;border-bottom:1px solid #edf0f3;position:sticky;top:0}
+.mtl-table td{padding:10px;border-bottom:1px solid #edf0f3;color:#4f5c68;vertical-align:middle}
+.mtl-table tr:hover td{background:#fbfcfd}
+.mtl-table .mtl-actions{display:flex;gap:6px;justify-content:flex-end}
+.mtl-id{font-size:9px;font-weight:800;background:rgba(0,0,0,.06);padding:3px 6px;border-radius:5px;white-space:nowrap}
+.mtl-doer-count{margin-left:auto;font-size:9px;background:#eef1f4;color:#5a6673;border-radius:20px;padding:3px 8px;font-weight:800}
+.mtl-empty{padding:26px;text-align:center;color:#8a949e;font-size:12px}
+@media(max-width:560px){.calendar-view-toggles small{margin-left:0;width:100%}.cal-doer-filter{width:100%}.cal-doer-filter select{width:100%}}
+
+/* ===== Calendar: present-day highlight + festival holidays ===== */
+.calendar-day.today{outline:2px solid var(--crest-orange);outline-offset:-2px;background:var(--crest-orange-soft)!important;border-color:var(--crest-orange);color:#8a4b12}
+.cal-daynum{display:inline-flex;align-items:center;gap:6px}
+.cal-today-tag{font-style:normal;font-size:7px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;background:var(--crest-orange);color:#fff;padding:2px 5px;border-radius:20px}
+.calendar-day.festival{background:#f6efff!important;color:#6d51b8}
+.calendar-day.festival:after{content:none!important}
+.calendar-day.festival.today{background:var(--crest-orange-soft)!important}
+.cal-festival-tag{display:inline-flex;align-items:center;gap:3px;max-width:100%;margin-top:4px;font-size:7.5px;font-weight:800;line-height:1.15;background:#eadcff;color:#5b3fa6;border:1px solid #dcc7fb;padding:2px 5px;border-radius:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.legend-today{background:var(--crest-orange)}
+.legend-festival{background:#a883f0}
+.legend-done{background:#5aa77c}
+.legend-delay{background:#e6a44c}
+
+/* Holiday management panel */
+.holiday-panel{margin-bottom:16px}
+.holiday-form{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.holiday-form .filter-field{padding:0 8px}
+.holiday-occasion{flex:1;min-width:180px;border:1px solid #dfe5ea;border-radius:8px;padding:9px 10px;font-size:12px;outline:0}
+.holiday-occasion:focus{border-color:#f3bd7c;box-shadow:0 0 0 3px rgba(242,138,26,.08)}
+.holiday-list{display:grid;gap:6px}
+.holiday-row{display:flex;align-items:center;gap:9px;padding:9px 11px;border:1px solid var(--crest-border);border-radius:9px;background:#faf7ff;font-size:11px}
+.holiday-row>svg{color:#7c5cc4;flex:none}
+.holiday-row b{color:#4a3a75}
+.holiday-row span{color:#8a949e;margin-left:auto}
+.holiday-empty{font-size:11px;color:#8a949e;padding:6px 2px}
+.holiday-page-panel .holiday-form{margin-bottom:16px}
+.hp-section-title{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:#8a949e;margin:14px 0 8px}
+.hp-section-title:first-child{margin-top:0}
+.holiday-row .hp-date{margin-left:auto;color:#8a949e;font-size:10px;white-space:nowrap}
+.holiday-row.past{opacity:.55;background:#f7f8f9}
+.holiday-row.past b{color:#6b7682}
+.holiday-banner{margin:8px 20px 0;display:flex;align-items:center;gap:8px;background:#f4ecff;border:1px solid #e0cdfb;color:#5b3fa6;border-radius:9px;padding:10px 12px;font-size:11px}
+.holiday-banner b{font-weight:800}
+@media(max-width:560px){.holiday-form .primary-btn{width:100%}.holiday-occasion{min-width:0}}
+
+/* ===== Delegation = teal (visually distinct from the orange Checklist) ===== */
+:root{--crest-teal:#0e7c86;--crest-teal-dark:#0a5b63;--crest-teal-soft:#e2f3f4;--crest-teal-mid:#bfe6e9}
+.type-pill.delegation{background:var(--crest-teal-soft)!important;color:var(--crest-teal-dark)!important}
+.type-badge.delegation{background:var(--crest-teal-soft)!important;color:var(--crest-teal-dark)!important}
+.history-type-badge.delegation{background:var(--crest-teal-soft);color:var(--crest-teal-dark)}
+.history-type-badge.checklist{background:var(--crest-orange-soft);color:var(--crest-orange-dark)}
+.legend-delegation{background:var(--crest-teal)}
+.calendar-task-chip.delegation:not(.done):not(.delay):not(.overdue){background:var(--crest-teal-soft);color:var(--crest-teal-dark);border-color:#fff}
+.calendar-detail-card.delegation:not(.done):not(.delay):not(.overdue){border-left-color:var(--crest-teal)}
+.calendar-detail-card.delegation:not(.done):not(.delay):not(.overdue) .calendar-card-icon{background:var(--crest-teal-soft);color:var(--crest-teal-dark)}
+.calendar-detail-card.delegation:not(.done):not(.delay):not(.overdue)>strong{background:var(--crest-teal-soft);color:var(--crest-teal-dark)}
+

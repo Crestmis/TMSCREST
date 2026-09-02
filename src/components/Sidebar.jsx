@@ -1,9 +1,10 @@
-import {LayoutDashboard,ListTodo,Users,CalendarDays,BarChart3,Settings,X,Plus,ShieldCheck,History,LifeBuoy,TrendingUp} from 'lucide-react'
+import {LayoutDashboard,ListTodo,Users,CalendarDays,BarChart3,Settings,X,Plus,ShieldCheck,History,LifeBuoy,TrendingUp,ListChecks,PartyPopper} from 'lucide-react'
 const items=[
   ['dashboard','Dashboard',LayoutDashboard],
-  ['tasks','Tasks List',ListTodo],
+  ['tasks','Checklist',ListTodo],
   ['delegation','Delegation',Users],
   ['calendar','Calendar',CalendarDays],
+  ['holidays','Holidays',PartyPopper],
   ['reports','Reports & Score',BarChart3],
   ['livescore','Live Score',TrendingUp],
   ['history','History',History],
@@ -32,6 +33,9 @@ export default function Sidebar({page,setPage,open,setOpen,session}){
    {session?.isAdmin&&<><div className="nav-divider"/>
    <button className={page==='admin-access'?'nav-item active':'nav-item'} onClick={()=>{setPage('admin-access');setOpen(false)}}>
     <ShieldCheck size={18}/><span>Admin Access</span>
+   </button>
+   <button className={page==='master-tasklist'?'nav-item active':'nav-item'} onClick={()=>{setPage('master-tasklist');setOpen(false)}}>
+    <ListChecks size={18}/><span>Master TasksList</span>
    </button></>}
   </nav>
   <div className="sidebar-bottom">
