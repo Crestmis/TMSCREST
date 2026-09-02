@@ -2,7 +2,7 @@ import {useEffect,useMemo,useState} from 'react'
 import {ListTodo,RefreshCw,Plus,Pencil,Trash2,Search,Users,Save,AlertTriangle,CheckCircle2,UserPlus} from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import {loadUsers} from '../services/auth'
-import {fetchChecklist,fetchDelegation,createTask,updateTask,deleteTask,createUser} from '../services/tasks'
+import {fetchChecklist,fetchDelegation,createTask,updateTask,deleteTask,createUser,deleteUser} from '../services/tasks'
 import {normalize} from '../services/sheets'
 
 const FREqs=['One-Time','Daily','Fortnightly','Weekly','Monthly','Quarterly','Half-Yearly','Yearly']
@@ -20,6 +20,7 @@ export default function MasterTaskList({session}){
  const [q,setQ]=useState('')
  const [form,setForm]=useState(null)
  const [confirm,setConfirm]=useState(null)
+ const [confirmUser,setConfirmUser]=useState(null)
  const [showAddUser,setShowAddUser]=useState(false)
  const [newUser,setNewUser]=useState({username:'',password:'',department:'',role:'user'})
  const [busy,setBusy]=useState(false)
@@ -105,6 +106,18 @@ export default function MasterTaskList({session}){
   finally{setBusy(false)}
  }
 
+ const removeUser=async()=>{
+  setBusy(true);setError('')
+  try{
+   await deleteUser(confirmUser)
+   setConfirmUser(null);setOk(`User "${confirmUser}" deleted.`)
+   setDoer('all')
+   await load()
+  }catch(err){setError(err.message||'Unable to delete user.');setConfirmUser(null)}
+  finally{setBusy(false)}
+ }
+ const canDeleteUser=doer!=='all'&&doer!=='admin'&&doer!==session.username
+
  return <>
   <PageHeader title="Master TasksList" subtitle="Every checklist and delegation task, fetched from Google Sheets. Add users and their tasks; each doer sees only their own tasks in their panel."
    action={<div className="header-actions">
@@ -127,6 +140,7 @@ export default function MasterTaskList({session}){
      <div><h2>Doers</h2><p>Select whose tasks to show.</p></div>
      <div className="header-actions">
       <button className="secondary-btn icon-only" title="Add user" onClick={()=>{setError('');setOk('');setShowAddUser(true)}}><UserPlus size={14}/></button>
+      <button className="secondary-btn icon-only danger" title={canDeleteUser?`Delete user "${doer}"`:'Select a deletable user first'} disabled={!canDeleteUser} onClick={()=>setConfirmUser(doer)}><Trash2 size={13}/></button>
       <button className="secondary-btn icon-only" title="Refresh" onClick={load}><RefreshCw size={14}/></button>
      </div>
     </div>
@@ -149,7 +163,10 @@ export default function MasterTaskList({session}){
    <section className="panel access-editor">
     <div className="access-section-head">
      <div><h2><ListTodo size={17}/> {doer==='all'?'All Doers':doer}</h2><p>{rows.length} task(s) shown. Edit or delete any row.</p></div>
-     {doer!=='all'&&<button className="primary-btn" onClick={openAdd}><Plus size={14}/> Add task for {doer}</button>}
+     {doer!=='all'&&<div className="header-actions">
+      <button className="secondary-btn danger" disabled={!canDeleteUser} title={canDeleteUser?'Delete this user':'This user cannot be deleted'} onClick={()=>setConfirmUser(doer)}><Trash2 size={13}/> Delete user</button>
+      <button className="primary-btn" onClick={openAdd}><Plus size={14}/> Add task for {doer}</button>
+     </div>}
     </div>
 
     <div className="toolbar" style={{padding:'12px 16px 0'}}>
@@ -267,6 +284,18 @@ export default function MasterTaskList({session}){
     <div className="modal-actions">
      <button className="secondary-btn" onClick={()=>setConfirm(null)} disabled={busy}>Cancel</button>
      <button className="primary-btn danger" onClick={remove} disabled={busy}><Trash2 size={15}/> {busy?'Deleting…':'Delete Task'}</button>
+    </div>
+   </section>
+  </div>}
+
+  {confirmUser&&<div className="modal-backdrop" onClick={()=>setConfirmUser(null)}>
+   <section className="completion-modal" onClick={e=>e.stopPropagation()} style={{maxWidth:460}}>
+    <div className="modal-head">
+     <div><h2>Delete user “{confirmUser}”?</h2><p>Removes their login from the master sheet and all of their access rows. Their existing tasks stay in the sheet. This cannot be undone.</p></div>
+    </div>
+    <div className="modal-actions">
+     <button className="secondary-btn" onClick={()=>setConfirmUser(null)} disabled={busy}>Cancel</button>
+     <button className="primary-btn danger" onClick={removeUser} disabled={busy}><Trash2 size={15}/> {busy?'Deleting…':'Delete User'}</button>
     </div>
    </section>
   </div>}
