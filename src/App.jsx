@@ -59,7 +59,7 @@ export default function App(){
   default: content=<Dashboard {...props}/>
  }
  return <div className="app-shell">
-  <Sidebar page={page} setPage={setPage} open={menu} setOpen={setMenu} session={session}/>
+  <Sidebar page={page} setPage={setPage} open={menu} setOpen={setMenu} session={session} onLogout={logout}/>
   {menu&&<div className="overlay" onClick={()=>setMenu(false)}/>}
   <main className="main">
    <Topbar onMenu={()=>setMenu(true)} session={session} onLogout={logout}/>

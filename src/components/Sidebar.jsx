@@ -1,4 +1,4 @@
-import {LayoutDashboard,ListTodo,Users,CalendarDays,BarChart3,Settings,X,Plus,ShieldCheck,History,LifeBuoy,TrendingUp,ListChecks,PartyPopper} from 'lucide-react'
+import {LayoutDashboard,ListTodo,Users,CalendarDays,BarChart3,Settings,X,Plus,ShieldCheck,History,LifeBuoy,TrendingUp,ListChecks,PartyPopper,LogOut,User} from 'lucide-react'
 const items=[
   ['dashboard','Dashboard',LayoutDashboard],
   ['tasks','Checklist',ListTodo],
@@ -12,9 +12,10 @@ const items=[
   ['help-support','Help & Support',LifeBuoy],
   ['settings','Settings',Settings],
 ]
-export default function Sidebar({page,setPage,open,setOpen,session}){
+export default function Sidebar({page,setPage,open,setOpen,session,onLogout}){
  const can=(label)=>session?.isAdmin||String(session?.access?.[label]||'None')!=='None'
  const visibleItems=items.filter(x=>can(x[1]))
+ const go=id=>{setPage(id);setOpen(false)}
  return <aside className={`sidebar ${open?'open':''}`}>
   <div className="brand">
    <div className="brand-mark">C</div>
@@ -37,7 +38,14 @@ export default function Sidebar({page,setPage,open,setOpen,session}){
    </button></>}
   </nav>
   <div className="sidebar-bottom">
-   <div className="side-user"><b>{session?.username}</b><small>{session?.department||'Department'}</small></div>
+   <button className="side-user" onClick={()=>go('settings')} title="Open your profile settings">
+    <span className="user-avatar">{session?.username?.slice(0,2).toUpperCase()||<User size={14}/>}</span>
+    <span className="side-user-meta">
+     <b>{session?.username||'Account'}</b>
+     <small>{session?.role||'user'}{session?.department?` · ${session.department}`:''}</small>
+    </span>
+   </button>
+   <button className="side-logout" onClick={onLogout}><LogOut size={15}/> Sign out</button>
   </div>
  </aside>
 }

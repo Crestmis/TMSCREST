@@ -426,3 +426,22 @@ html[data-theme="dark"] .report-bars i{background:#28333f}
 html[data-theme="dark"] .score-track{background:#28333f}
 html[data-theme="dark"] .fake-chart{border-color:#28333f}
 html[data-theme="dark"] .score-ring:after{background:#171f28}
+
+/* ===== Sidebar footer: profile + sign out (all screen sizes) ===== */
+.sidebar-bottom{display:flex;flex-direction:column;gap:8px;padding:10px;border-top:1px solid #eef1f4}
+.side-user{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:1px solid #e8edf0;background:#fff;border-radius:9px;padding:9px 10px;margin:0}
+.side-user:hover{background:#f5f7f9}
+.side-user .user-avatar{width:30px;height:30px;border-radius:50%;background:#e9eef3;color:#17324d;display:grid;place-items:center;font-size:11px;font-weight:800;flex:none}
+.side-user-meta{min-width:0}
+.side-user-meta b{display:block;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:capitalize}
+.side-user-meta small{display:block;font-size:10px;color:#87919b;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-transform:capitalize}
+.side-logout{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;border:1px solid #dfe5ea;background:#fff;color:#b4453f;border-radius:8px;padding:9px;font-size:12px;font-weight:600}
+.side-logout:hover{background:#fbecec;border-color:#f0cccc}
+@media(max-width:900px){.sidebar-bottom{display:flex!important}.top-actions .icon-btn:last-child{display:inline-flex!important}}
+html[data-theme="dark"] .sidebar-bottom{border-color:#232f3a}
+html[data-theme="dark"] .side-user{background:#131c25;border-color:#28333f}
+html[data-theme="dark"] .side-user:hover{background:#1e2833}
+html[data-theme="dark"] .side-user .user-avatar{background:#22303d;color:#cfe0ef}
+html[data-theme="dark"] .side-user-meta b{color:#dbe3ea}
+html[data-theme="dark"] .side-logout{background:#1c2631;border-color:#33414f;color:#f0a0a0}
+html[data-theme="dark"] .side-logout:hover{background:#2a1616;border-color:#5a2b2b}
