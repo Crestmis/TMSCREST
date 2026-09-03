@@ -1,5 +1,5 @@
 import { CONFIG } from '../config'
-import { getDemoSheet, insertDemoTask, completeDemoTask, demoAccessRows, saveDemoAccess, submitDemoSupport, createDemoUser, updateDemoUser, deleteDemoUser, updateDemoTask, deleteDemoTask, saveDemoHoliday, deleteDemoHoliday } from '../data/demoStore'
+import { getDemoSheet, insertDemoTask, completeDemoTask, demoAccessRows, saveDemoAccess, submitDemoSupport, createDemoUser, updateDemoUser, deleteDemoUser, updateDemoTask, deleteDemoTask, saveDemoHoliday, deleteDemoHoliday, masterAddDemo, masterUpdateDemo, masterDeleteDemo } from '../data/demoStore'
 function demoRowsToResult(rows){if(!rows.length)return {headers:[],values:[],raw:null};const headers=[...new Set(rows.flatMap(r=>Object.keys(r)))];return {headers,values:rows.map(r=>headers.map(h=>r[h]??'')),raw:null}}
 export async function readSheet(sheetName){
  if(CONFIG.DEMO_MODE)return demoRowsToResult(getDemoSheet(sheetName))
@@ -21,7 +21,9 @@ export async function postAppsScript(fields){
    if(fields.action==='deleteTask'){return deleteDemoTask(fields)}
    if(fields.action==='saveHoliday'){return saveDemoHoliday(fields)}
    if(fields.action==='deleteHoliday'){return deleteDemoHoliday(fields)}
-   if(fields.action==='syncMaster'||fields.action==='pushMaster'){return {success:true,demo:true}}
+   if(fields.action==='masterAdd'){return masterAddDemo(fields)}
+   if(fields.action==='masterUpdate'){return masterUpdateDemo(fields)}
+   if(fields.action==='masterDelete'){return masterDeleteDemo(fields)}
    if(fields.action==='complete'){return completeDemoTask(fields.task,{status:fields.status,remarks:fields.remarks,nextTargetDate:fields.nextTargetDate,attachmentUrl:fields.attachmentUrl,actualDate:fields.actualDate,actualTime:fields.actualTime,completionType:fields.completionType,responsibilityConfirmed:fields.responsibilityConfirmed})}
    return {success:true,demo:true}
  }

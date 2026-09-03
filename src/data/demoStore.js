@@ -1,4 +1,4 @@
-const KEY = 'crest_demo_store_v7'
+const KEY = 'crest_demo_store_v8'
 
 function localISO(offset=0){ const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()+offset); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 function localTimeNow(){ const d=new Date(); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` }
@@ -31,6 +31,10 @@ const initial = {
     {'Timestamp':new Date().toISOString(),'Task ID':'D-0999','Status':'Done','Completion Type':'ON_TIME','Next Target Date':'','Remarks':'Demo completion','Attachment':'','Submitted Date':new Date().toISOString(),'Actual Date':localISO(-1),'Actual Time':'09:40','Doer':'rahul','Task':'Completed Sample Task','Given By':'rahul','Department':'Operations'}
   ],
   'Working Day Calendar':[],
+  'MasterTasksList':[
+    {'Task ID':'M-1001','Name':'rahul','Task Description':'Monthly compliance review','Freq':'Monthly','Remarks':'Type entries here or on the Master TasksList page'},
+    {'Task ID':'M-1002','Name':'amit','Task Description':'Client renewal follow-up','Freq':'Quarterly','Remarks':''},
+  ],
   'HOLIDAYS':[
     {'Date':localISO(2),'Occasion':'Ganesh Chaturthi'},
     {'Date':localISO(8),'Occasion':'Milad-un-Nabi'},
@@ -41,17 +45,32 @@ function seed(){localStorage.setItem(KEY,JSON.stringify(initial));return clone(i
 export function getStore(){const raw=localStorage.getItem(KEY);if(!raw)return seed();try{const store=JSON.parse(raw);if(!store['ACCESS CONTROL']){store['ACCESS CONTROL']=clone(initial['ACCESS CONTROL']);saveStore(store)}return store}catch{return seed()}}
 export function saveStore(store){localStorage.setItem(KEY,JSON.stringify(store));return store}
 export function resetDemoStore(){return seed()}
-export function getDemoSheet(name){
- if(String(name).toLowerCase()==='mastertaskslist'){
-  const st=getStore()
-  const tag=(rows,type)=>(rows||[]).filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>({
-   'Task ID':r['Task ID']||'','Type':type,'Task Description':r['Task Description']||'','Department':r['Department']||'',
-   'Given By':r['Given By']||'','Name':r['Name']||'','Task Start Date':r['Task Start Date']||'','Task Start Time':r['Task Start Time']||'',
-   'Freq':r['Freq']||'','Status':r['Status']||'','Remarks':r['Remarks']||'','Actual Date':r['Actual Date']||'','Actual Time':r['Actual Time']||'','Completion Type':r['Completion Type']||''
-  }))
-  return [...tag(st.Checklist,'Checklist'),...tag(st.DELEGATION,'Delegation')]
- }
- return clone(getStore()[name]||[])
+export function getDemoSheet(name){return clone(getStore()[name]||[])}
+function masterNextIdDemo_(rows){const nums=(rows||[]).map(r=>String(r['Task ID']||'').match(/^M-(\d+)$/i)).filter(Boolean).map(m=>Number(m[1]));return `M-${Math.max(1000,...nums)+1}`}
+export function masterAddDemo({name,taskDescription,taskTitle,freq,frequency,remarks}){
+ const store=getStore();store['MasterTasksList']=store['MasterTasksList']||[]
+ const id=masterNextIdDemo_(store['MasterTasksList'])
+ store['MasterTasksList'].push({'Task ID':id,'Name':name||'','Task Description':taskDescription||taskTitle||'','Freq':freq||frequency||'One-Time','Remarks':remarks||''})
+ saveStore(store);return {success:true,demo:true,taskId:id}
+}
+export function masterUpdateDemo({taskId,row,name,taskDescription,taskTitle,freq,frequency,remarks}){
+ const store=getStore();const rows=store['MasterTasksList']||[]
+ let idx=taskId?rows.findIndex(r=>String(r['Task ID'])===String(taskId)):-1
+ if(idx<0&&row)idx=Number(row)-2
+ if(idx<0||idx>=rows.length)throw new Error('MasterTasksList row not found.')
+ if(name!==undefined)rows[idx]['Name']=name
+ if(taskDescription!==undefined||taskTitle!==undefined)rows[idx]['Task Description']=taskDescription!==undefined?taskDescription:taskTitle
+ if(freq!==undefined||frequency!==undefined)rows[idx]['Freq']=freq!==undefined?freq:frequency
+ if(remarks!==undefined)rows[idx]['Remarks']=remarks
+ if(!rows[idx]['Task ID'])rows[idx]['Task ID']=masterNextIdDemo_(rows)
+ saveStore(store);return {success:true,demo:true}
+}
+export function masterDeleteDemo({taskId,row}){
+ const store=getStore();const rows=store['MasterTasksList']||[]
+ let idx=taskId?rows.findIndex(r=>String(r['Task ID'])===String(taskId)):-1
+ if(idx<0&&row)idx=Number(row)-2
+ if(idx<0||idx>=rows.length)throw new Error('MasterTasksList row not found.')
+ rows.splice(idx,1);saveStore(store);return {success:true,demo:true}
 }
 export function demoLoginUsers(){return clone(getStore().users)}
 export function demoAccessRows(username=''){return clone(getStore()['ACCESS CONTROL']||[]).filter(r=>!username||String(r.Username||'').toLowerCase()===String(username).toLowerCase())}
