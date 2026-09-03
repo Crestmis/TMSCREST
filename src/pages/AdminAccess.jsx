@@ -59,9 +59,19 @@ export default function AdminAccess({session,onSessionChanged}){
   e.preventDefault();setError('');setBusy(true)
   try{
    await createUser(newUser)
+   // F4: write an explicit matrix straight away so the new user is never left on the
+   // default fallback set. Everything None except a Dashboard landing page.
+   const uname=String(newUser.username||'').trim().toLowerCase()
+   const seed={}
+   PAGES.forEach(p=>{seed[p]='None'})
+   seed['Dashboard']='Viewer'
+   seed['Task Visibility']='Own Tasks'
+   seed['Calendar Past']='Allowed'
+   seed['Calendar Future']='Allowed'
+   await saveAccess(uname,seed)
    setShowAdd(false)
    setNewUser({username:'',password:'',department:'',role:'user'})
-   await load(newUser.username)
+   await load(uname)
   }catch(e){setError(e.message||'Unable to add user.')}
   finally{setBusy(false)}
  }

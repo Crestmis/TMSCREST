@@ -15,7 +15,7 @@ import AllTaskList from './pages/AllTaskList'
 import History from './pages/History'
 import HelpSupport from './pages/HelpSupport'
 import LiveScore from './pages/LiveScore'
-import {getSession,logout} from './services/auth'
+import {getSession,logout,refreshAccess} from './services/auth'
 
 export default function App(){
  const [session,setSession]=useState(getSession())
@@ -24,6 +24,9 @@ export default function App(){
  const [refresh,setRefresh]=useState(0)
  const [assignHint,setAssignHint]=useState('delegation')
  useEffect(()=>{ if(session) sessionStorage.setItem('crest_session',JSON.stringify(session)) },[session])
+ // F3: on every app load, re-sync this user's permissions from ACCESS CONTROL so an
+ // admin's matrix change reaches them on their next page reload (no full re-login needed).
+ useEffect(()=>{ refreshAccess().then(s=>{ if(s) setSession(s) }) },[])
  if(!session) return <Login onLogin={()=>setSession(getSession())}/>
  const props={setPage,session,refresh,assignHint,setAssignHint,onChanged:()=>setRefresh(x=>x+1)}
  const pageAccess={
@@ -42,6 +45,8 @@ export default function App(){
   livescore:'Live Score'
  }
  const canPage=id=>session.isAdmin||String(session.access?.[pageAccess[id]]||'None')!=='None'
+ // Admin Access opens for the superadmin, or a user explicitly granted Editor/Full Access to it.
+ const canAdmin=session.isAdmin||['Editor','Full Access'].includes(String(session.access?.['Admin Access']||''))
  let content
  switch(canPage(page)?page:'dashboard'){
   case 'tasks': content=<Tasks {...props}/>;break
@@ -51,7 +56,7 @@ export default function App(){
   case 'reports': content=<Reports {...props}/>;break
   case 'assign': content=<AssignTask {...props}/>;break
   case 'settings': content=<Settings {...props}/>;break
-  case 'admin-access': content=session.isAdmin?<AdminAccess {...props} onSessionChanged={setSession}/>:<Dashboard {...props}/>;break
+  case 'admin-access': content=canAdmin?<AdminAccess {...props} onSessionChanged={setSession}/>:<Dashboard {...props}/>;break
   case 'all-tasklist': content=<AllTaskList {...props}/>;break
   case 'history': content=<History {...props}/>;break
   case 'help-support': content=<HelpSupport {...props}/>;break
@@ -59,7 +64,7 @@ export default function App(){
   default: content=<Dashboard {...props}/>
  }
  return <div className="app-shell">
-  <Sidebar page={page} setPage={setPage} open={menu} setOpen={setMenu} session={session} onLogout={logout}/>
+  <Sidebar page={page} setPage={setPage} open={menu} setOpen={setMenu} session={session} onLogout={logout} canAdmin={canAdmin}/>
   {menu&&<div className="overlay" onClick={()=>setMenu(false)}/>}
   <main className="main">
    <Topbar onMenu={()=>setMenu(true)} session={session} onLogout={logout}/>

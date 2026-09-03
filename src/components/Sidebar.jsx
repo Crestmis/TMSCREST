@@ -12,7 +12,7 @@ const items=[
   ['help-support','Help & Support',LifeBuoy],
   ['settings','Settings',Settings],
 ]
-export default function Sidebar({page,setPage,open,setOpen,session,onLogout}){
+export default function Sidebar({page,setPage,open,setOpen,session,onLogout,canAdmin}){
  const can=(label)=>session?.isAdmin||String(session?.access?.[label]||'None')!=='None'
  const visibleItems=items.filter(x=>can(x[1]))
  const go=id=>{setPage(id);setOpen(false)}
@@ -32,7 +32,7 @@ export default function Sidebar({page,setPage,open,setOpen,session,onLogout}){
    <button style={{display:can('Assign Task')?'flex':'none'}} className={page==='assign'?'nav-item active':'nav-item'} onClick={()=>{setPage('assign');setOpen(false)}}>
     <Plus size={18}/><span>Assign Task</span>
    </button>
-   {session?.isAdmin&&<><div className="nav-divider"/>
+   {canAdmin&&<><div className="nav-divider"/>
    <button className={page==='admin-access'?'nav-item active':'nav-item'} onClick={()=>{setPage('admin-access');setOpen(false)}}>
     <ShieldCheck size={18}/><span>Admin Access</span>
    </button></>}

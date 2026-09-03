@@ -46,5 +46,20 @@ export function localTime(d=new Date()){return `${String(d.getHours()).padStart(
 export function localDateTime(d=new Date()){return `${localISO(d)} ${localTime(d)}`}
 export function displayDateTime(dateValue,timeValue){const dd=displayDate(dateValue);if(!dd)return '';const t=String(timeValue||'').trim();return t?`${dd} ${t}`:dd}
 
-export async function fetchAccess(username=''){if(CONFIG.DEMO_MODE)return demoAccessRows(username);try{return (await readRows('ACCESS CONTROL')).filter(r=>!username||String(r.Username||'').toLowerCase()===String(username).toLowerCase())}catch{return []}}
+// F1: tolerate whitespace / header-casing in the ACCESS CONTROL sheet. Rows are
+// normalised to canonical {Username, Page, Access} keys and matched case/space-insensitively.
+export async function fetchAccess(username=''){
+ const want=String(username||'').trim().toLowerCase()
+ if(CONFIG.DEMO_MODE)return demoAccessRows(username)
+ try{
+  const raw=await readRows('ACCESS CONTROL')
+  const field=(r,names)=>{for(const k of Object.keys(r)){if(names.includes(String(k).trim().toLowerCase()))return r[k]}return ''}
+  const norm=raw.map(r=>({
+   Username:String(field(r,['username','user name','user','login','userid'])).trim(),
+   Page:String(field(r,['page','page name','screen','module'])).trim(),
+   Access:String(field(r,['access','level','right','rights','permission'])).trim()
+  })).filter(r=>r.Username||r.Page)
+  return norm.filter(r=>!want||r.Username.toLowerCase()===want)
+ }catch{return []}
+}
 export async function saveAccess(username,permissions){return postAppsScript({action:'saveAccess',username,permissions})}
