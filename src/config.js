@@ -15,5 +15,6 @@ export const CONFIG = {
     UNIQUE: 'UNIQUE',
     WORKING_DAYS: 'Working Day Calendar',
     HOLIDAYS: 'HOLIDAYS',
+    MASTER_TASKS: 'MasterTasksList',
   },
 }

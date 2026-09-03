@@ -1,8 +1,8 @@
 import {useEffect,useMemo,useState} from 'react'
-import {ListTodo,RefreshCw,Plus,Pencil,Trash2,Search,Users,Save,AlertTriangle,CheckCircle2,UserPlus} from 'lucide-react'
+import {ListTodo,RefreshCw,Plus,Pencil,Trash2,Search,Users,Save,AlertTriangle,CheckCircle2,UserPlus,DownloadCloud} from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import {loadUsers} from '../services/auth'
-import {fetchChecklist,fetchDelegation,createTask,updateTask,deleteTask,createUser,deleteUser} from '../services/tasks'
+import {fetchMasterTasks,createTask,updateTask,deleteTask,createUser,deleteUser,pushMasterTasks} from '../services/tasks'
 import {normalize} from '../services/sheets'
 
 const FREqs=['One-Time','Daily','Fortnightly','Weekly','Monthly','Quarterly','Half-Yearly','Yearly']
@@ -28,11 +28,17 @@ export default function MasterTaskList({session}){
  const load=async()=>{
   setLoading(true);setError('')
   try{
-   const [all,c,d]=await Promise.all([loadUsers().catch(()=>({})),fetchChecklist(),fetchDelegation()])
+   const [all,mt]=await Promise.all([loadUsers().catch(()=>({})),fetchMasterTasks()])
    setUsers(Object.values(all))
-   setTasks([...c,...d])
+   setTasks(mt)
   }catch(e){setError(e.message||'Unable to load the master task list.')}
   finally{setLoading(false)}
+ }
+ const applySheetEdits=async()=>{
+  setBusy(true);setError('');setOk('')
+  try{ await pushMasterTasks(); setOk('MasterTasksList sheet edits applied to the task sheets.'); await load() }
+  catch(e){ setError(e.message||'Unable to apply sheet edits.') }
+  finally{ setBusy(false) }
  }
  useEffect(()=>{load()},[session.username])
 
@@ -119,9 +125,10 @@ export default function MasterTaskList({session}){
  const canDeleteUser=doer!=='all'&&doer!=='admin'&&doer!==session.username
 
  return <>
-  <PageHeader title="Master TasksList" subtitle="Every checklist and delegation task, fetched from Google Sheets. Add users and their tasks; each doer sees only their own tasks in their panel."
+  <PageHeader title="Master TasksList" subtitle="Backed by the MasterTasksList tab in Google Sheets — edit here or in the sheet, both stay in sync. Refresh pulls the sheet; “Apply sheet edits” pushes rows changed in the tab into the task sheets."
    action={<div className="header-actions">
     <button className="secondary-btn" onClick={load}><RefreshCw size={15}/> Refresh</button>
+    <button className="secondary-btn" onClick={applySheetEdits} disabled={busy} title="Push rows edited directly in the MasterTasksList tab into Checklist / DELEGATION"><DownloadCloud size={15}/> Apply sheet edits</button>
     <button className="secondary-btn" onClick={()=>{setError('');setOk('');setShowAddUser(true)}}><UserPlus size={15}/> Add User</button>
     <button className="primary-btn" onClick={openAdd}><Plus size={15}/> Add Task</button>
    </div>}/>

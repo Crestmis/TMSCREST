@@ -41,7 +41,18 @@ function seed(){localStorage.setItem(KEY,JSON.stringify(initial));return clone(i
 export function getStore(){const raw=localStorage.getItem(KEY);if(!raw)return seed();try{const store=JSON.parse(raw);if(!store['ACCESS CONTROL']){store['ACCESS CONTROL']=clone(initial['ACCESS CONTROL']);saveStore(store)}return store}catch{return seed()}}
 export function saveStore(store){localStorage.setItem(KEY,JSON.stringify(store));return store}
 export function resetDemoStore(){return seed()}
-export function getDemoSheet(name){return clone(getStore()[name]||[])}
+export function getDemoSheet(name){
+ if(String(name).toLowerCase()==='mastertaskslist'){
+  const st=getStore()
+  const tag=(rows,type)=>(rows||[]).filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>({
+   'Task ID':r['Task ID']||'','Type':type,'Task Description':r['Task Description']||'','Department':r['Department']||'',
+   'Given By':r['Given By']||'','Name':r['Name']||'','Task Start Date':r['Task Start Date']||'','Task Start Time':r['Task Start Time']||'',
+   'Freq':r['Freq']||'','Status':r['Status']||'','Remarks':r['Remarks']||'','Actual Date':r['Actual Date']||'','Actual Time':r['Actual Time']||'','Completion Type':r['Completion Type']||''
+  }))
+  return [...tag(st.Checklist,'Checklist'),...tag(st.DELEGATION,'Delegation')]
+ }
+ return clone(getStore()[name]||[])
+}
 export function demoLoginUsers(){return clone(getStore().users)}
 export function demoAccessRows(username=''){return clone(getStore()['ACCESS CONTROL']||[]).filter(r=>!username||String(r.Username||'').toLowerCase()===String(username).toLowerCase())}
 export function submitDemoSupport(fields){const store=getStore();store['HELP & SUPPORT']=store['HELP & SUPPORT']||[];store['HELP & SUPPORT'].push({'Timestamp':new Date().toISOString(),'Doer Name':fields.doerName||fields.username||'','Department':fields.department||'','Request Type':fields.type||'Suggestion','Priority':fields.priority||'Normal','Subject':fields.subject||'','Details':fields.message||''});saveStore(store);return {success:true,demo:true}}

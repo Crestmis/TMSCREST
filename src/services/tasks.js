@@ -66,6 +66,15 @@ export async function createUser(fields){return postAppsScript({action:'createUs
 export async function updateUser(fields){return postAppsScript({action:'updateUser',...fields})}
 export async function deleteUser(username){return postAppsScript({action:'deleteUser',username})}
 export async function fetchAllTasks(){const [c,d]=await Promise.all([fetchChecklist(),fetchDelegation()]);return [...c,...d]}
+export async function fetchMasterTasks(){
+  const rows=await readRows(CONFIG.SHEETS.MASTER_TASKS)
+  return rows.filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>{
+    const type=String(pick(r,['Type','Task Type'],'Checklist'))||'Checklist'
+    return mapTask(r, /^del/i.test(type)?'Delegation':'Checklist')
+  })
+}
+export async function syncMasterTasks(){return postAppsScript({action:'syncMaster'})}
+export async function pushMasterTasks(){return postAppsScript({action:'pushMaster'})}
 export async function updateTask({taskId,taskType='checklist',taskTitle,assignee,department,givenBy,plannedDate,plannedTime,frequency,status,remarks}){
   const safeDate=plannedDate!==undefined?nextNonSunday(plannedDate):undefined
   return postAppsScript({action:'updateTask',taskId,taskType,taskTitle,assignee,department,givenBy,plannedDate:safeDate,plannedTime,frequency,status,remarks,sheetName:String(taskType).toLowerCase()==='checklist'?CONFIG.SHEETS.CHECKLIST:CONFIG.SHEETS.DELEGATION})

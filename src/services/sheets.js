@@ -21,6 +21,7 @@ export async function postAppsScript(fields){
    if(fields.action==='deleteTask'){return deleteDemoTask(fields)}
    if(fields.action==='saveHoliday'){return saveDemoHoliday(fields)}
    if(fields.action==='deleteHoliday'){return deleteDemoHoliday(fields)}
+   if(fields.action==='syncMaster'||fields.action==='pushMaster'){return {success:true,demo:true}}
    if(fields.action==='complete'){return completeDemoTask(fields.task,{status:fields.status,remarks:fields.remarks,nextTargetDate:fields.nextTargetDate,attachmentUrl:fields.attachmentUrl,actualDate:fields.actualDate,actualTime:fields.actualTime,completionType:fields.completionType,responsibilityConfirmed:fields.responsibilityConfirmed})}
    return {success:true,demo:true}
  }
