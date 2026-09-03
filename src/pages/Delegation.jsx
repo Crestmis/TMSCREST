@@ -3,6 +3,7 @@ import { Plus, RefreshCw, Search, Filter, CalendarDays, Users, CheckSquare, Squa
 import PageHeader from '../components/PageHeader'
 import TaskRow from '../components/TaskRow'
 import CompletionDrawer from '../components/CompletionDrawer'
+import CollapsibleControls from '../components/CollapsibleControls'
 import { fetchDelegation, fetchDelegationHistory, visibleToUser } from '../services/tasks'
 
 export default function Delegation({ session, setPage, refresh, onChanged, setAssignHint }) {
@@ -70,7 +71,8 @@ export default function Delegation({ session, setPage, refresh, onChanged, setAs
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(pending.map(t => `${t.type}:${t.id}`)))
   const selectedTasks = list.filter(t => selected.has(`${t.type}:${t.id}`))
 
-  const clearFilters = () => { setQ(''); setDoer('all'); setDate(''); setStatus('all'); setSelected(new Set()) }
+  const clearFilters = () => { setDoer('all'); setDate(''); setStatus('all'); setSelected(new Set()) }
+  const activeCount = (doer !== 'all' ? 1 : 0) + (date ? 1 : 0) + (status !== 'all' ? 1 : 0)
 
   return (
     <>
@@ -102,40 +104,40 @@ export default function Delegation({ session, setPage, refresh, onChanged, setAs
           <Search size={16} />
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search task, doer or ID..." />
         </div>
-
-        <label className="filter-field">
-          <Users size={14} />
-          <select value={doer} onChange={e => setDoer(e.target.value)}>
-            <option value="all">All Doers</option>
-            {doers.map(x => <option key={x}>{x}</option>)}
-          </select>
-        </label>
-
-        <label className="filter-field">
-          <CalendarDays size={14} />
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} title="Filter by planned / actual date" />
-        </label>
-
-        <select value={status} onChange={e => setStatus(e.target.value)}>
-          <option value="all">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="overdue">Overdue</option>
-          <option value="delay">Delay</option>
-          <option value="done">Done</option>
-        </select>
-
-        <button className="secondary-btn" onClick={clearFilters}><Filter size={15} /> Clear</button>
       </div>
 
-      {error && <div className="error-box page-error">{error}</div>}
-
-      <div className="panel">
+      <CollapsibleControls activeCount={activeCount} onClear={clearFilters}>
         <div className="delegation-summary">
           <div><span>Visible tasks</span><b>{current.length}</b></div>
           <div><span>Pending</span><b>{current.filter(x => String(x.liveStatus || x.status).toLowerCase() !== 'done').length}</b></div>
           <div><span>History</span><b>{history.length}</b></div>
           <div><span>Showing</span><b>{list.length}</b></div>
         </div>
+        <div className="toolbar task-filters">
+          <label className="filter-field">
+            <Users size={14} />
+            <select value={doer} onChange={e => setDoer(e.target.value)}>
+              <option value="all">All Doers</option>
+              {doers.map(x => <option key={x}>{x}</option>)}
+            </select>
+          </label>
+          <label className="filter-field">
+            <CalendarDays size={14} />
+            <input type="date" value={date} onChange={e => setDate(e.target.value)} title="Filter by planned / actual date" />
+          </label>
+          <select value={status} onChange={e => setStatus(e.target.value)}>
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="overdue">Overdue</option>
+            <option value="delay">Delay</option>
+            <option value="done">Done</option>
+          </select>
+        </div>
+      </CollapsibleControls>
+
+      {error && <div className="error-box page-error">{error}</div>}
+
+      <div className="panel">
 
         {tab === 'current' && (
           <div className="selection-bar">
