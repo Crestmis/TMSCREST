@@ -452,3 +452,9 @@ html[data-theme="dark"] .login-heading h1{color:#e9eef3}
 html[data-theme="dark"] .login-heading p,html[data-theme="dark"] .login-brand small,html[data-theme="dark"] .login-note{color:#93a1b0}
 html[data-theme="dark"] .login-form label{color:#aab6c2}
 html[data-theme="dark"] .login-form input{background:#10171f;border-color:#2d3b49;color:#dbe3ea}
+
+/* ===== Access / view-only alerts ===== */
+.access-banner{margin-bottom:14px}
+.page-denied-banner{display:flex;align-items:center;gap:8px;background:#fff4e5;border:1px solid #f0d9b5;color:#8a5a1c;border-radius:8px;padding:10px 12px;font-size:12px;margin-bottom:14px}
+html[data-theme="dark"] .page-denied-banner{background:#2e2413;border-color:#5a4a25;color:#e8c48c}
+.mobile-nav{grid-template-columns:unset!important;grid-auto-flow:column;grid-auto-columns:1fr}

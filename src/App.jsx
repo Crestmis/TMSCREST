@@ -15,6 +15,7 @@ import AllTaskList from './pages/AllTaskList'
 import History from './pages/History'
 import HelpSupport from './pages/HelpSupport'
 import LiveScore from './pages/LiveScore'
+import AccessBanner from './components/AccessBanner'
 import {getSession,logout,refreshAccess} from './services/auth'
 
 export default function App(){
@@ -47,8 +48,10 @@ export default function App(){
  const canPage=id=>session.isAdmin||String(session.access?.[pageAccess[id]]||'None')!=='None'
  // Admin Access opens for the superadmin, or a user explicitly granted Editor/Full Access to it.
  const canAdmin=session.isAdmin||['Editor','Full Access'].includes(String(session.access?.['Admin Access']||''))
+ const routeAllowed=page==='admin-access'?canAdmin:canPage(page)
+ const deniedLabel=!routeAllowed?(pageAccess[page]||page):''
  let content
- switch(canPage(page)?page:'dashboard'){
+ switch(routeAllowed?page:'dashboard'){
   case 'tasks': content=<Tasks {...props}/>;break
   case 'delegation': content=<Delegation {...props}/>;break
   case 'calendar': content=<Calendar {...props}/>;break
@@ -56,7 +59,7 @@ export default function App(){
   case 'reports': content=<Reports {...props}/>;break
   case 'assign': content=<AssignTask {...props}/>;break
   case 'settings': content=<Settings {...props}/>;break
-  case 'admin-access': content=canAdmin?<AdminAccess {...props} onSessionChanged={setSession}/>:<Dashboard {...props}/>;break
+  case 'admin-access': content=<AdminAccess {...props} onSessionChanged={setSession}/>;break
   case 'all-tasklist': content=<AllTaskList {...props}/>;break
   case 'history': content=<History {...props}/>;break
   case 'help-support': content=<HelpSupport {...props}/>;break
@@ -68,12 +71,15 @@ export default function App(){
   {menu&&<div className="overlay" onClick={()=>setMenu(false)}/>}
   <main className="main">
    <Topbar onMenu={()=>setMenu(true)} session={session} onLogout={logout}/>
-   <div className="page-wrap">{content}</div>
+   <div className="page-wrap">
+    {deniedLabel&&<AccessBanner tone="info">You don’t have access to “{deniedLabel}”. Ask an admin to grant it from Admin Access. Showing your Dashboard instead.</AccessBanner>}
+    {content}
+   </div>
   </main>
   <div className="mobile-nav">
    <button className={page==='dashboard'?'active':''} onClick={()=>setPage('dashboard')}>Home</button>
-   <button className={page==='tasks'?'active':''} onClick={()=>setPage('tasks')}>Checklist</button>
-   <button className={page==='calendar'?'active':''} onClick={()=>setPage('calendar')}>Calendar</button>
+   {canPage('tasks')&&<button className={page==='tasks'?'active':''} onClick={()=>setPage('tasks')}>Checklist</button>}
+   {canPage('calendar')&&<button className={page==='calendar'?'active':''} onClick={()=>setPage('calendar')}>Calendar</button>}
    <button onClick={()=>setMenu(true)}>More</button>
   </div>
  </div>

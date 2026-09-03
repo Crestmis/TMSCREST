@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useState} from 'react'
 import {Save,CheckCircle2,CalendarDays,Clock3} from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import AccessBanner from '../components/AccessBanner'
 import {createTask,nextNonSunday} from '../services/tasks'
 import {loadUsers} from '../services/auth'
 import {displayDate} from '../services/sheets'
@@ -27,6 +28,7 @@ export default function AssignTask({session,onChanged,setPage,assignHint}){
 
  const submit=async e=>{
    e.preventDefault();setError('');setMessage('')
+   if(!canEdit){setError('You can view this form but not create tasks. Ask an admin for Editor or Full Access on “Assign Task”.');return}
    if(!form.title||!form.date||!form.assignee){setError('Task title, assignee and planned date are required.');return}
    const safeDate=nextNonSunday(form.date)
    setBusy(true)
@@ -37,6 +39,7 @@ export default function AssignTask({session,onChanged,setPage,assignHint}){
    }catch(e){setError(e.message||'Unable to submit task.')}finally{setBusy(false)}
  }
  return <><PageHeader title="Assign Task" subtitle="Create a checklist or delegation with a planned date and time."/>
+ {!canEdit&&<AccessBanner>View only — you can browse this form but not create tasks. Editor or Full Access on “Assign Task” is required. Ask an admin from Admin Access.</AccessBanner>}
  <form className="panel form-panel" onSubmit={submit}>
   <div className="form-grid">
    <label>Task Title<input value={form.title} onChange={e=>change('title',e.target.value)} placeholder="Enter task title"/></label>
@@ -65,6 +68,6 @@ export default function AssignTask({session,onChanged,setPage,assignHint}){
    <label className="full">Remarks<textarea value={form.remarks} onChange={e=>change('remarks',e.target.value)} placeholder="Optional remarks"/></label>
   </div>
   {error&&<div className="error-box">{error}</div>}{message&&<div className="success-box"><CheckCircle2 size={16}/>{message}</div>}
-  <div className="form-actions"><button type="button" className="secondary-btn" onClick={()=>setPage('dashboard')}>Cancel</button><button className="primary-btn" disabled={busy||!canEdit}><Save size={16}/>{busy?'Saving…':'Save Task'}</button></div>
+  <div className="form-actions"><button type="button" className="secondary-btn" onClick={()=>setPage('dashboard')}>Cancel</button><button className="primary-btn" disabled={busy}><Save size={16}/>{busy?'Saving…':'Save Task'}</button></div>
  </form></>
 }
