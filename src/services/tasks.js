@@ -59,6 +59,29 @@ export async function fetchDelegation(){return (await readRows(CONFIG.SHEETS.DEL
 export async function fetchTaskHistory(){try{return (await readRows('TASK HISTORY')).filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>mapHistoryRow(r))}catch{return []}}
 function mapHistoryRow(r){const planned=pick(r,['Planned Date','Task Start Date','Planned'],'');const actual=pick(r,['Actual Date','Actual'],'');const actualTime=String(pick(r,['Actual Time'],'')||'');const status=String(pick(r,['Status','Task Status'],'Done'))||'Done';return {id:String(pick(r,['Task ID','TaskId','TaskID'],r._row)),title:String(pick(r,['Task Description','Task','Description'],'Untitled task')),type:String(pick(r,['Task Type','Type'],'Checklist')),department:String(pick(r,['Department'],'')),givenBy:String(pick(r,['Given By'],'')),assignee:String(pick(r,['Doer','Name','Assignee'],'')),plannedRaw:planned,planned:displayDate(isoDate(planned)||planned),plannedISO:isoDate(planned)||'',plannedTime:String(pick(r,['Planned Time','Set Time','Time'],'')),frequency:String(pick(r,['Frequency','Freq'],'One-Time')),status,liveStatus:status,actualRaw:actual,actualISO:isoDate(actual)||'',actualTime,actualDate:displayDate(actual),actual:displayDateTime(actual,actualTime),completionType:String(pick(r,['Completion Type'],'')),remarks:String(pick(r,['Remarks'],'')),row:r._row,raw:r}}
 export async function fetchDelegationHistory(){try{return (await readRows(CONFIG.SHEETS.DELEGATION_DONE)).filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>mapTask(r,'Delegation')).map(t=>({...t,status:String(pick(t.raw,['Status','Task Status'],'Done'))||'Done'}))}catch{return []}}
+
+// ---- History helpers ---------------------------------------------------------
+const isDoneStatus=s=>['done','delay'].includes(String(s||'').toLowerCase())
+function histKey(t){return `${String(t.type||'').toLowerCase()}|${t.id}|${t.actualISO||t.plannedISO||''}`}
+function mergeHistory(...lists){
+  const out=new Map()
+  lists.flat().forEach(t=>{const k=histKey(t);const cur=out.get(k);if(!cur||(!cur.actualISO&&t.actualISO))out.set(k,t)})
+  return [...out.values()].sort((a,b)=>String(b.actualISO||b.plannedISO||'').localeCompare(String(a.actualISO||a.plannedISO||'')))
+}
+// Completed CHECKLIST work: rows written to TASK HISTORY on submit, merged with any
+// Done/Delay rows still sitting on the Checklist sheet (deduped by task + actual date).
+export async function fetchChecklistHistory(){
+  const [hist,live]=await Promise.all([fetchTaskHistory(),fetchChecklist().catch(()=>[])])
+  const cHist=hist.filter(t=>String(t.type||'').toLowerCase()==='checklist')
+  const cDone=live.filter(t=>isDoneStatus(t.liveStatus||t.status))
+  return mergeHistory(cHist,cDone)
+}
+// Everything ever submitted, both task types — powers the standalone History page.
+export async function fetchAllHistory(){
+  const [hist,c,d]=await Promise.all([fetchTaskHistory(),fetchChecklist().catch(()=>[]),fetchDelegation().catch(()=>[])])
+  const done=[...c,...d].filter(t=>isDoneStatus(t.liveStatus||t.status))
+  return mergeHistory(hist,done)
+}
 export function visibleToUser(tasks,session){if(!session||session.isAdmin)return tasks;const u=normalize(session.username);const visibility=String(session.taskVisibility||session.access?.['Task Visibility']||'Own Tasks').toLowerCase();if(['all tasks','all','full'].includes(visibility))return tasks;return tasks.filter(t=>normalize(t.assignee)===u)}
 
 export async function submitSupport(fields){return postAppsScript({action:'support',...fields})}
