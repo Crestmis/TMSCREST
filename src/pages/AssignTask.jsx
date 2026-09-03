@@ -6,10 +6,13 @@ import {createTask,nextNonSunday} from '../services/tasks'
 import {loadUsers} from '../services/auth'
 import {displayDate} from '../services/sheets'
 
+// Checklists are always recurring; delegations are always one-time.
+const CHECKLIST_FREQS=['Daily','Fortnightly','Weekly','Monthly','Quarterly','Half-Yearly','Yearly']
+
 export default function AssignTask({session,onChanged,setPage,assignHint}){
  const canEdit=session?.isAdmin||['Editor','Full Access'].includes(session?.access?.['Assign Task'])
  const [users,setUsers]=useState([])
- const [form,setForm]=useState(()=>({title:'',type:assignHint==='checklist'?'checklist':'delegation',assignee:'',department:session.department==='all'?'':session.department,date:'',time:'09:00',frequency:'One-Time',reminders:false,attachment:false,remarks:''}))
+ const [form,setForm]=useState(()=>({title:'',type:assignHint==='checklist'?'checklist':'delegation',assignee:'',department:session.department==='all'?'':session.department,date:'',time:'09:00',frequency:assignHint==='checklist'?'Daily':'One-Time',reminders:false,attachment:false,remarks:''}))
  const [busy,setBusy]=useState(false);const [message,setMessage]=useState('');const [error,setError]=useState('')
 
  useEffect(()=>{loadUsers().then(all=>setUsers(Object.values(all))).catch(()=>{})},[])
@@ -21,6 +24,7 @@ export default function AssignTask({session,onChanged,setPage,assignHint}){
  },[users,session.department])
 
  const change=(k,v)=>setForm(f=>({...f,[k]:v}))
+ const changeType=v=>setForm(f=>({...f,type:v,frequency:v==='delegation'?'One-Time':(f.frequency==='One-Time'?'Daily':f.frequency)}))
  const changeAssignee=v=>{
   const u=users.find(x=>x.username===v)
   setForm(f=>({...f,assignee:v,department:u?.department||f.department}))
@@ -43,7 +47,7 @@ export default function AssignTask({session,onChanged,setPage,assignHint}){
  <form className="panel form-panel" onSubmit={submit}>
   <div className="form-grid">
    <label>Task Title<input value={form.title} onChange={e=>change('title',e.target.value)} placeholder="Enter task title"/></label>
-   <label>Task Type<select value={form.type} onChange={e=>change('type',e.target.value)}><option value="delegation">Delegation</option><option value="checklist">Checklist</option></select></label>
+   <label>Task Type<select value={form.type} onChange={e=>changeType(e.target.value)}><option value="delegation">Delegation</option><option value="checklist">Checklist</option></select></label>
    <label>Assign To
     <select value={form.assignee} onChange={e=>changeAssignee(e.target.value)}>
      <option value="">Select a doer…</option>
@@ -60,9 +64,13 @@ export default function AssignTask({session,onChanged,setPage,assignHint}){
    </label>
    <label><span className="field-with-icon">Planned Date <CalendarDays size={13}/></span><input type="date" value={form.date} onChange={e=>change('date',e.target.value)}/><small className="field-help">Sundays are holidays and automatically move to Monday.</small></label>
    <label><span className="field-with-icon">Set Time <Clock3 size={13}/></span><input type="time" value={form.time} onChange={e=>change('time',e.target.value)}/><small className="field-help">Used for the 24-hour Pending → Overdue rule.</small></label>
-   <label>Frequency<select value={form.frequency} onChange={e=>change('frequency',e.target.value)}>
-    <option>One-Time</option><option>Daily</option><option>Fortnightly</option><option>Weekly</option><option>Monthly</option><option>Quarterly</option><option>Half-Yearly</option><option>Yearly</option>
-   </select></label>
+   <label>Frequency
+    {form.type==='delegation'
+     ? <select value="One-Time" disabled title="Delegations are always one-time"><option>One-Time</option></select>
+     : <select value={form.frequency} onChange={e=>change('frequency',e.target.value)}>
+        {CHECKLIST_FREQS.map(f=><option key={f}>{f}</option>)}
+       </select>}
+   </label>
    <label className="check-field"><span><input type="checkbox" checked={form.reminders} onChange={e=>change('reminders',e.target.checked)}/> Enable reminders</span></label>
    <label className="check-field"><span><input type="checkbox" checked={form.attachment} onChange={e=>change('attachment',e.target.checked)}/> Require attachment</span></label>
    <label className="full">Remarks<textarea value={form.remarks} onChange={e=>change('remarks',e.target.value)} placeholder="Optional remarks"/></label>
