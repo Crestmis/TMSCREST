@@ -463,3 +463,14 @@ html[data-theme="dark"] .page-denied-banner{background:#2e2413;border-color:#5a4
 .task-main>b{font-size:13px;font-weight:600;color:#1c242c}
 html[data-theme="dark"] .task-main>b{color:#eef2f7}
 @media(max-width:700px){.task-main>b{font-size:12px}}
+
+/* ===== Calendar loading state ===== */
+.calendar-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;padding:74px 20px;text-align:center}
+.calendar-loading b{font-size:14px}
+.calendar-loading small{font-size:11px;color:#8a949e}
+.cal-spinner{width:34px;height:34px;border:3px solid #e4e9ee;border-top-color:#f28a1a;border-radius:50%;animation:cal-spin .8s linear infinite}
+.cal-refreshing{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:#8a949e;margin-right:4px}
+.cal-spin-i{animation:cal-spin .8s linear infinite}
+@keyframes cal-spin{to{transform:rotate(360deg)}}
+html[data-theme="dark"] .calendar-loading small,html[data-theme="dark"] .cal-refreshing{color:#93a1b0}
+html[data-theme="dark"] .cal-spinner{border-color:#2b3742;border-top-color:#f0a94e}

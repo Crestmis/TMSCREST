@@ -3,23 +3,29 @@ import {ChevronLeft,ChevronRight,RefreshCw,X,CheckSquare,Users,Clock,CalendarChe
 import PageHeader from '../components/PageHeader'
 import {fetchChecklist,fetchDelegation,fetchTaskHistory,visibleToUser} from '../services/tasks'
 import {localISO,displayDateTime,normalize} from '../services/sheets'
-import {getWorkingDates,occurrences,getHolidays,holidayMap} from '../services/calendar'
+import {occurrences,getHolidays,holidayMap} from '../services/calendar'
 
 const VIEW_KEY='crest_calendar_view_v1'
 function readView(){try{return {past:true,future:true,...JSON.parse(localStorage.getItem(VIEW_KEY)||'{}')}}catch{return {past:true,future:true}}}
 function writeView(v){try{localStorage.setItem(VIEW_KEY,JSON.stringify(v))}catch{}}
+
+// Session cache so re-opening the Calendar is instant while it revalidates in the background.
+const CACHE_KEY='crest_calendar_cache_v1'
+function readCache(user){try{const c=JSON.parse(sessionStorage.getItem(CACHE_KEY)||'null');return c&&c.user===user?c:null}catch{return null}}
+function writeCache(user,tasks,holidays){try{sessionStorage.setItem(CACHE_KEY,JSON.stringify({user,tasks,holidays,ts:Date.now()}))}catch{}}
 
 export default function Calendar({session,refresh}){
  const canPast=session?.isAdmin||session?.calendarPast!==false
  const canFuture=session?.isAdmin||session?.calendarFuture!==false
  const canFilterDoer=session?.isAdmin||['Editor','Full Access'].includes(session?.access?.['Calendar'])
 
- const [tasks,setTasks]=useState([])
+ const cached=readCache(session.username)
+ const [tasks,setTasks]=useState(cached?.tasks||[])
  const [history,setHistory]=useState([])
- const [working,setWorking]=useState([])
- const [holidays,setHolidays]=useState([])
+ const [working]=useState([])
+ const [holidays,setHolidays]=useState(cached?.holidays||[])
  const [month,setMonth]=useState(new Date())
- const [loading,setLoading]=useState(true)
+ const [loading,setLoading]=useState(!cached)
  const [error,setError]=useState('')
  const [selected,setSelected]=useState(null)
  const [doer,setDoer]=useState('all')
@@ -27,19 +33,24 @@ export default function Calendar({session,refresh}){
 
  const setViewFlag=(k,val)=>setView(v=>{const next={...v,[k]:val};writeView(next);return next})
 
- const load=async()=>{
-  setLoading(true);setError('')
+ const load=async(silent=false)=>{
+  if(!silent)setLoading(true)
+  setError('')
   try{
-   const [c,d,w,h,hol]=await Promise.all([fetchChecklist(),fetchDelegation(),getWorkingDates(),fetchTaskHistory().catch(()=>[]),getHolidays().catch(()=>[])])
-   setTasks(visibleToUser([...c,...d],session))
-   setHistory(h)
-   setWorking(w)
-   setHolidays(hol)
-  }catch(e){setError(e.message)}
+   const [c,d,h,hol]=await Promise.all([
+    fetchChecklist().catch(()=>[]),
+    fetchDelegation().catch(()=>[]),
+    fetchTaskHistory().catch(()=>[]),
+    getHolidays().catch(()=>[])
+   ])
+   const all=visibleToUser([...c,...d],session)
+   setTasks(all);setHistory(h);setHolidays(hol)
+   writeCache(session.username,all,hol)
+  }catch(e){setError(e.message||'Unable to load the calendar.')}
   finally{setLoading(false)}
  }
 
- useEffect(()=>{load()},[refresh,session.username])
+ useEffect(()=>{load(!!readCache(session.username))},[refresh,session.username])
 
  const range=useMemo(()=>({
   start:new Date(month.getFullYear(),month.getMonth(),1),
@@ -84,14 +95,22 @@ export default function Calendar({session,refresh}){
  return <>
   <PageHeader title="Calendar" subtitle="Every scheduled task, with recurring frequencies. Sundays and marked holidays are skipped — those tasks move to the next working day."
    action={<div className="calendar-controls">
+    {loading&&tasks.length>0&&<span className="cal-refreshing"><RefreshCw size={12} className="cal-spin-i"/> refreshing…</span>}
     <button onClick={()=>setMonth(new Date(month.getFullYear(),month.getMonth()-1,1))}><ChevronLeft size={16}/></button>
     <b>{month.toLocaleString('en-US',{month:'long',year:'numeric'})}</b>
     <button onClick={()=>setMonth(new Date(month.getFullYear(),month.getMonth()+1,1))}><ChevronRight size={16}/></button>
-    <button className="secondary-btn calendar-refresh" onClick={load}><RefreshCw size={14}/></button>
+    <button className="secondary-btn calendar-refresh" onClick={()=>load()}><RefreshCw size={14}/></button>
    </div>}/>
 
   {error&&<div className="error-box page-error">{error}</div>}
 
+  {loading&&!tasks.length?(
+   <div className="panel calendar-loading">
+    <span className="cal-spinner" aria-hidden="true"/>
+    <b>Loading your calendar…</b>
+    <small>Fetching scheduled tasks from the sheet</small>
+   </div>
+  ):<>
   <div className="calendar-view-toggles">
    <label className={`cal-toggle ${!canPast?'disabled':''}`} title={canPast?'':'Not permitted for your account'}>
     <input type="checkbox" checked={view.past} disabled={!canPast} onChange={e=>setViewFlag('past',e.target.checked)}/>
@@ -148,11 +167,11 @@ export default function Calendar({session,refresh}){
    </div>
   </div>
 
-  {loading?<div className="loading-box">Loading calendar…</div>:
-   <div className="panel calendar-summary">
-    <div><h2>{events.length} planned occurrences</h2><p>Recurring tasks repeat by frequency and skip Sundays &amp; holidays.</p></div>
-    <button className="secondary-btn" onClick={()=>setSelected({date:today,items:(counts[today]||[]).map(enrichEvent),occasion:holMap[today]})}>Today</button>
-   </div>}
+  <div className="panel calendar-summary">
+   <div><h2>{events.length} planned occurrences</h2><p>Recurring tasks repeat by frequency and skip Sundays &amp; holidays.</p></div>
+   <button className="secondary-btn" onClick={()=>setSelected({date:today,items:(counts[today]||[]).map(enrichEvent),occasion:holMap[today]})}>Today</button>
+  </div>
+  </>}
 
   {selected&&<div className="modal-backdrop" onClick={()=>setSelected(null)}>
    <section className="calendar-modal" onClick={e=>e.stopPropagation()}>
