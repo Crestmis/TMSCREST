@@ -1,6 +1,7 @@
 import {useEffect,useMemo,useState} from 'react'
-import {TrendingUp,RefreshCw,Filter,CalendarDays,Users,Search,Download} from 'lucide-react'
+import {TrendingUp,RefreshCw,CalendarDays,Users,Search} from 'lucide-react'
 import PageHeader from '../components/PageHeader'
+import CollapsibleControls from '../components/CollapsibleControls'
 import {fetchChecklist,fetchDelegation,fetchTaskHistory,visibleToUser} from '../services/tasks'
 
 function todayISO(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
@@ -82,6 +83,8 @@ export default function LiveScore({session,refresh}){
   const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
   setDateFrom(fmt(mon));setDateTo(fmt(sat))
  }
+ const clearFilters=()=>{setDoerFilter('all');setTypeFilter('all');setDateFrom('');setDateTo('')}
+ const activeCount=(doerFilter!=='all'?1:0)+(typeFilter!=='all'?1:0)+(dateFrom?1:0)+(dateTo?1:0)
 
  const statusClass=s=>{
   const l=String(s||'').toLowerCase()
@@ -112,45 +115,45 @@ export default function LiveScore({session,refresh}){
   </div>
 
   {/* Filters */}
-  <div className="toolbar livescore-toolbar">
+  <div className="toolbar">
    <div className="search-box">
     <Search size={16}/>
     <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search task, doer, ID..."/>
    </div>
-
-   <label className="filter-field">
-    <Users size={14}/>
-    <select value={doerFilter} onChange={e=>setDoerFilter(e.target.value)}>
-     <option value="all">All Doers</option>
-     {doers.map(d=><option key={d}>{d}</option>)}
-    </select>
-   </label>
-
-   <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}>
-    <option value="all">All Types</option>
-    <option value="checklist">Checklist</option>
-    <option value="delegation">Delegation</option>
-   </select>
-
-   <label className="filter-field">
-    <CalendarDays size={14}/>
-    <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} title="From date"/>
-   </label>
-   <span className="date-range-sep">–</span>
-   <label className="filter-field">
-    <CalendarDays size={14}/>
-    <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} title="To date"/>
-   </label>
-
-   <div className="livescore-quick-dates">
-    <button className="secondary-btn" onClick={setTodayFilter}>Today</button>
-    <button className="secondary-btn" onClick={setThisWeek}>This Week</button>
-   </div>
-
-   <button className="secondary-btn" onClick={()=>{setQ('');setDoerFilter('all');setTypeFilter('all');setDateFrom('');setDateTo('')}}>
-    <Filter size={15}/> Clear
-   </button>
   </div>
+
+  <CollapsibleControls label="Filters" activeCount={activeCount} onClear={clearFilters}>
+   <div className="toolbar livescore-toolbar">
+    <label className="filter-field">
+     <Users size={14}/>
+     <select value={doerFilter} onChange={e=>setDoerFilter(e.target.value)}>
+      <option value="all">All Doers</option>
+      {doers.map(d=><option key={d}>{d}</option>)}
+     </select>
+    </label>
+
+    <select value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}>
+     <option value="all">All Types</option>
+     <option value="checklist">Checklist</option>
+     <option value="delegation">Delegation</option>
+    </select>
+
+    <label className="filter-field">
+     <CalendarDays size={14}/>
+     <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} title="From date"/>
+    </label>
+    <span className="date-range-sep">–</span>
+    <label className="filter-field">
+     <CalendarDays size={14}/>
+     <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} title="To date"/>
+    </label>
+
+    <div className="livescore-quick-dates">
+     <button className="secondary-btn" onClick={setTodayFilter}>Today</button>
+     <button className="secondary-btn" onClick={setThisWeek}>This Week</button>
+    </div>
+   </div>
+  </CollapsibleControls>
 
   {error&&<div className="error-box page-error">{error}</div>}
 

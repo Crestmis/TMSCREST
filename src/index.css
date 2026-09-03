@@ -413,3 +413,16 @@ html[data-theme="dark"] .icon-btn{color:#9aa7b4}
 html[data-theme="dark"] .icon-btn:hover{background:#1e2833}
 html[data-theme="dark"] .side-user b,html[data-theme="dark"] .profile b{color:#dbe3ea}
 html[data-theme="dark"] .theme-toggle{color:#9aa7b4}
+html[data-theme="dark"] .lsh-stat,html[data-theme="dark"] .livescore-hero .panel{background:#131c25;border-color:#28333f}
+html[data-theme="dark"] .lsh-stat small,html[data-theme="dark"] .livescore-table td small,html[data-theme="dark"] .score-ring span{color:#8b98a5}
+html[data-theme="dark"] .livescore-table th{background:#131c25;color:#93a1b0}
+html[data-theme="dark"] .livescore-table th,html[data-theme="dark"] .livescore-table td{border-color:#28333f}
+html[data-theme="dark"] .livescore-row.score-done{background:#122117}
+html[data-theme="dark"] .livescore-row.score-delay{background:#241a10}
+html[data-theme="dark"] .livescore-row.score-overdue{background:#2a1616}
+html[data-theme="dark"] .livescore-row.score-pending{background:#131c25}
+html[data-theme="dark"] .livescore-row.score-done td,html[data-theme="dark"] .livescore-row.score-delay td,html[data-theme="dark"] .livescore-row.score-overdue td{border-color:#2b3742!important}
+html[data-theme="dark"] .report-bars i{background:#28333f}
+html[data-theme="dark"] .score-track{background:#28333f}
+html[data-theme="dark"] .fake-chart{border-color:#28333f}
+html[data-theme="dark"] .score-ring:after{background:#171f28}
