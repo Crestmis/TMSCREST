@@ -148,7 +148,7 @@ function allDelete_(p){
 }
 function getSheet_(name){var s=SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name);if(!s)throw new Error('Sheet not found: '+name);return s;}
 function getHeaders_(s){var n=Math.max(1,s.getLastColumn());return s.getRange(1,1,1,n).getDisplayValues()[0];}
-function appendMapped_(sheet,headers,map){var row=headers.map(function(h){var k=normalize_(h);return map[k]!==undefined?map[k]:'';});sheet.appendRow(row);}
+function appendMapped_(sheet,headers,map){var norm={};Object.keys(map).forEach(function(kk){norm[normalize_(kk)]=map[kk];});var row=headers.map(function(h){var k=normalize_(h);return norm[k]!==undefined?norm[k]:'';});sheet.appendRow(row);}
 function setByHeader_(sheet,headers,row,aliases,value){var idx=findHeader_(headers,aliases);if(idx>=0)sheet.getRange(row,idx+1).setValue(value);}
 function findHeader_(headers,aliases){for(var i=0;i<headers.length;i++){var k=normalize_(headers[i]);for(var j=0;j<aliases.length;j++)if(k===normalize_(aliases[j]))return i;}return -1;}
 function nextId_(sheet,type){var headers=getHeaders_(sheet),idx=findHeader_(headers,['task id','taskid']);if(idx<0)return (type==='checklist'?'C-':'D-')+Date.now();var last=sheet.getLastRow();var vals=last>1?sheet.getRange(2,idx+1,last-1,1).getDisplayValues().flat():[];var max=1000;vals.forEach(function(v){var m=String(v).match(/^[CD]-(\d+)$/i);if(m)max=Math.max(max,Number(m[1]));});return (type==='checklist'?'C-':'D-')+(max+1);}

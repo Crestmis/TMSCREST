@@ -3,7 +3,7 @@ import {readRows,normalize,displayDate,isoDate,parseDate,postAppsScript,localISO
 
 function pick(row,names,fallback=''){
   for(const n of names){if(row[n]!==undefined&&row[n]!=='')return row[n]}
-  for(const k of Object.keys(row)){if(names.some(n=>normalize(n)===normalize(k)))return row[k]}
+  for(const k of Object.keys(row)){if(names.some(n=>normalize(n)===normalize(k))){const v=row[k];if(v!==undefined&&String(v).trim()!=='')return v}}
   return fallback
 }
 
