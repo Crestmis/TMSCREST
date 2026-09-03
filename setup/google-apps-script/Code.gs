@@ -1,6 +1,6 @@
 /** CREST Task Management - Google Apps Script backend. */
 function doGet(e){try{var p=e&&e.parameter||{};var action=String(p.action||'health');if(action==='health')return json_({success:true,message:'CREST backend is running',time:new Date().toISOString()});if(action==='fetch'){var name=String(p.sheet||'');if(!name)throw new Error('sheet is required');return json_(readSheet_(name));}throw new Error('Unsupported GET action: '+action);}catch(err){return json_({success:false,error:String(err.message||err)});}}
-function doPost(e){try{var p=e&&e.parameter||{};var action=String(p.action||'');if(action==='insert')return json_(insertTask_(p));if(action==='complete')return json_(completeTask_(p));if(action==='saveAccess')return json_(saveAccess_(p));if(action==='createUser')return json_(createUser_(p));if(action==='updateUser')return json_(updateUser_(p));if(action==='deleteUser')return json_(deleteUser_(p));if(action==='updateTask')return json_(updateTask_(p));if(action==='deleteTask')return json_(deleteTask_(p));if(action==='saveHoliday')return json_(saveHoliday_(p));if(action==='deleteHoliday')return json_(deleteHoliday_(p));if(action==='masterAdd')return json_(masterAdd_(p));if(action==='masterUpdate')return json_(masterUpdate_(p));if(action==='masterDelete')return json_(masterDelete_(p));if(action==='support')return json_(support_(p));throw new Error('Unsupported POST action: '+action);}catch(err){return json_({success:false,error:String(err.message||err)});}}
+function doPost(e){try{var p=e&&e.parameter||{};var action=String(p.action||'');if(action==='insert')return json_(insertTask_(p));if(action==='complete')return json_(completeTask_(p));if(action==='saveAccess')return json_(saveAccess_(p));if(action==='createUser')return json_(createUser_(p));if(action==='updateUser')return json_(updateUser_(p));if(action==='deleteUser')return json_(deleteUser_(p));if(action==='updateTask')return json_(updateTask_(p));if(action==='deleteTask')return json_(deleteTask_(p));if(action==='saveHoliday')return json_(saveHoliday_(p));if(action==='deleteHoliday')return json_(deleteHoliday_(p));if(action==='allAdd')return json_(allAdd_(p));if(action==='allUpdate')return json_(allUpdate_(p));if(action==='allDelete')return json_(allDelete_(p));if(action==='support')return json_(support_(p));throw new Error('Unsupported POST action: '+action);}catch(err){return json_({success:false,error:String(err.message||err)});}}
 function shiftSunday_(s){var d=new Date(String(s||'')+'T12:00:00');if(isNaN(d.getTime()))return s;while(d.getDay()===0)d.setDate(d.getDate()+1);return Utilities.formatDate(d,Session.getScriptTimeZone(),'yyyy-MM-dd');}
 function insertTask_(p){var taskType=String(p.taskType||'delegation').toLowerCase();var sheetName=taskType==='checklist'?'Checklist':'DELEGATION';var sheet=getSheet_(sheetName);var headers=getHeaders_(sheet);var id=String(p.taskId||nextId_(sheet,taskType));var safeDate=shiftSunday_(p.plannedDate||'');var map={'task id':id,'task description':p.taskTitle||'','task':p.taskTitle||'','department':p.department||'','firm':p.department||'','given by':p.givenBy||'','name':p.assignee||'','doer':p.assignee||'','assigned to':p.assignee||'','task start date':safeDate,'planned date':safeDate,'task start time':p.plannedTime||'','planned time':p.plannedTime||'','set time':p.plannedTime||'','freq':p.frequency||'One-Time','frequency':p.frequency||'One-Time','status':'Pending','enable reminders':String(p.reminders)==='true'?'Yes':'No','require attachment':String(p.requireAttachment)==='true'?'Yes':'No','remarks':p.remarks||'','timestamp':new Date()};appendMapped_(sheet,headers,map);return {success:true,sheet:sheetName,taskId:id};}
 function completeTask_(p){var task=JSON.parse(p.task||'{}');var type=String(task.type||'Delegation');var sheet=getSheet_(type.toLowerCase()==='checklist'?'Checklist':'DELEGATION');var headers=getHeaders_(sheet);var id=String(task.id||'');if(!id)throw new Error('Task ID is required');if(String(p.responsibilityConfirmed).toLowerCase()!=='true')throw new Error('Responsibility confirmation is required.');var actual=p.actualDate?new Date(p.actualDate+'T12:00:00'):new Date();var actualKey=Utilities.formatDate(actual,Session.getScriptTimeZone(),'yyyy-MM-dd');var actualTime=String(p.actualTime||Utilities.formatDate(new Date(),Session.getScriptTimeZone(),'HH:mm'));var plannedRaw=task.plannedISO||task.plannedRaw||'';var planned=plannedRaw?new Date(String(plannedRaw).slice(0,10)+'T12:00:00'):null;var freq=String(task.frequency||'One-Time').trim().toLowerCase();if(freq==='daily'&&planned&&!isNaN(planned.getTime())&&actualKey<Utilities.formatDate(planned,Session.getScriptTimeZone(),'yyyy-MM-dd'))throw new Error('Daily task cannot be completed before its planned date.');var idCol=findHeader_(headers,['task id','taskid']);if(idCol<0)throw new Error('Task ID column not found in '+sheet.getName());var values=sheet.getDataRange().getDisplayValues(),rowIndex=-1;for(var r=1;r<values.length;r++){if(String(values[r][idCol]).trim()===id){rowIndex=r+1;break;}}if(rowIndex<0)throw new Error('Task '+id+' not found in '+sheet.getName());var status=String(p.status||'Done');var statusCol=findHeader_(headers,['status','task status']);var currentStatus=statusCol>=0?String(values[rowIndex-1][statusCol]||'').toLowerCase():'';if(currentStatus==='done')throw new Error('Task '+id+' is already completed.');setByHeader_(sheet,headers,rowIndex,['status','task status'],status);setByHeader_(sheet,headers,rowIndex,['actual date','actual'],actualKey);setByHeader_(sheet,headers,rowIndex,['actual time'],actualTime);setByHeader_(sheet,headers,rowIndex,['completion type'],p.completionType||'ON_TIME');setByHeader_(sheet,headers,rowIndex,['responsibility confirmed'],'Yes');setByHeader_(sheet,headers,rowIndex,['confirmed at'],new Date());setByHeader_(sheet,headers,rowIndex,['remarks'],p.remarks||'');var hist=getOrCreateSheet_('TASK HISTORY',['Task ID','Task Description','Task Type','Doer','Given By','Department','Planned Date','Planned Time','Actual Date','Actual Time','Status','Completion Type','Remarks','Submitted Date']);appendMapped_(hist,getHeaders_(hist),{'task id':id,'task description':task.title||'','task type':type,'doer':task.assignee||'','given by':task.givenBy||'','department':task.department||'','planned date':plannedRaw,'planned time':task.plannedTime||'','actual date':actualKey,'actual time':actualTime,'status':status,'completion type':p.completionType||'ON_TIME','remarks':p.remarks||'','submitted date':new Date()});if(type.toLowerCase()!=='checklist'){var done=getOrCreateSheet_('DELEGATION DONE',['Timestamp','Task ID','Status','Completion Type','Next Target Date','Remarks','Attachment','Submitted Date','Actual Date','Actual Time','Responsibility Confirmed','Doer','Task','Given By','Department']);appendMapped_(done,getHeaders_(done),{'timestamp':new Date(),'task id':id,'status':status,'completion type':p.completionType||'ON_TIME','next target date':p.nextTargetDate||'','remarks':p.remarks||'','attachment':p.attachmentUrl||'','submitted date':new Date(),'actual date':actualKey,'actual time':actualTime,'responsibility confirmed':'Yes','doer':task.assignee||'','task':task.title||'','given by':task.givenBy||'','department':task.department||''});}return {success:true,taskId:id,status:status,completionType:p.completionType||'ON_TIME',actualDate:actualKey,actualTime:actualTime};}
@@ -101,47 +101,48 @@ function deleteHoliday_(p){
 
 function ensureDefaultAdmin_(){var ss=SpreadsheetApp.getActiveSpreadsheet(),s=ss.getSheetByName('master');if(!s)return;var headers=getHeaders_(s),uCol=findHeader_(headers,['username','user name','login','userid']),pCol=findHeader_(headers,['password','pass']),rCol=findHeader_(headers,['role','user role']),dCol=findHeader_(headers,['department','dept']);if(uCol<0||pCol<0||rCol<0)return;var vals=s.getDataRange().getDisplayValues(),found=false;for(var i=1;i<vals.length;i++)if(String(vals[i][uCol]).trim().toLowerCase()==='admin'){found=true;break;}if(!found){var row=headers.map(function(h){var k=normalize_(h);if(k==='username'||k==='username')return 'admin';if(k==='password')return 'admin123';if(k==='role')return 'admin';if(k==='department')return 'Administration';return '';});s.appendRow(row);}}
 function getOrCreateSheet_(name,headers){var ss=SpreadsheetApp.getActiveSpreadsheet(),s=ss.getSheetByName(name);if(!s){s=ss.insertSheet(name);s.appendRow(headers);}else if(s.getLastRow()===0&&headers)s.appendRow(headers);return s;}
-function readSheet_(name){if(String(name).toLowerCase()==='master')ensureDefaultAdmin_();if(String(name).toUpperCase()==='HOLIDAYS')getOrCreateSheet_('HOLIDAYS',['Date','Occasion']);if(String(name).toLowerCase()===MASTER_TASKS_SHEET.toLowerCase())masterSheet_();var s=getSheet_(name),values=s.getDataRange().getDisplayValues();return {success:true,headers:values.length?values[0]:[],values:values.length?values.slice(1):[]};}
+function readSheet_(name){if(String(name).toLowerCase()==='master')ensureDefaultAdmin_();if(String(name).toUpperCase()==='HOLIDAYS')getOrCreateSheet_('HOLIDAYS',['Date','Occasion']);if(String(name).toLowerCase()===ALL_TASKS_SHEET.toLowerCase())allSheet_();var s=getSheet_(name),values=s.getDataRange().getDisplayValues();return {success:true,headers:values.length?values[0]:[],values:values.length?values.slice(1):[]};}
 
 /* =====================================================================
- * MASTER TASKS LIST  —  a standalone, fully manual tab.
- * Columns: Task ID | Name | Task Description | Freq | Remarks
- * Entries are typed by hand (in the sheet or on the frontend page).
- * Nothing is auto-fetched from Checklist / DELEGATION.
- * Task ID is auto-filled (M-1001, M-1002, …) so the frontend can
- * edit / delete a specific row; leave it blank when typing a new row.
+ * ALL TASKS LIST  —  a standalone, fully manual tab.
+ * Columns: Name | Task Description | Freq | Remarks   (no Task ID)
+ * Rows are typed by hand (in the sheet or on the frontend page) and
+ * are addressed by their sheet row number. Nothing here is linked to
+ * Checklist / DELEGATION or to task completion.
+ * The frontend passes expectName / expectTitle so a stale edit after a
+ * sheet change is refused instead of hitting the wrong row.
  * ===================================================================== */
-var MASTER_TASKS_SHEET='MasterTasksList';
-var MASTER_HEADERS=['Task ID','Name','Task Description','Freq','Remarks'];
-function masterSheet_(){return getOrCreateSheet_(MASTER_TASKS_SHEET,MASTER_HEADERS);}
-function masterNextId_(s){
- var vals=s.getRange(2,1,Math.max(0,s.getLastRow()-1),1).getDisplayValues().flat(),max=1000;
- vals.forEach(function(v){var m=String(v).match(/^M-(\d+)$/i);if(m)max=Math.max(max,Number(m[1]));});
- return 'M-'+(max+1);
+var ALL_TASKS_SHEET='AllTasksList';
+var ALL_HEADERS=['Name','Task Description','Freq','Remarks'];
+function allSheet_(){return getOrCreateSheet_(ALL_TASKS_SHEET,ALL_HEADERS);}
+function allCheckRow_(s,h,row,p){
+ var r=Number(row);
+ if(!(r>=2&&r<=s.getLastRow()))throw new Error('AllTasksList row not found. Refresh and try again.');
+ if(p.expectName!==undefined&&String(p.expectName)!==''){
+  var nCol=findHeader_(h,['name','doer','assigned to']);
+  if(nCol>=0&&String(s.getRange(r,nCol+1).getDisplayValue()).trim()!==String(p.expectName).trim())throw new Error('That row changed in the sheet. Refresh and try again.');
+ }
+ if(p.expectTitle!==undefined&&String(p.expectTitle)!==''){
+  var tCol=findHeader_(h,['task description','task','description']);
+  if(tCol>=0&&String(s.getRange(r,tCol+1).getDisplayValue()).trim()!==String(p.expectTitle).trim())throw new Error('That row changed in the sheet. Refresh and try again.');
+ }
+ return r;
 }
-function masterFindRow_(s,id,rowHint){
- if(id){var vals=s.getRange(2,1,Math.max(0,s.getLastRow()-1),1).getDisplayValues().flat();for(var i=0;i<vals.length;i++)if(String(vals[i]).trim()===String(id).trim())return i+2;}
- var rh=Number(rowHint);if(rh>=2&&rh<=s.getLastRow())return rh;
- return -1;
+function allAdd_(p){
+ var s=allSheet_();var h=getHeaders_(s);
+ appendMapped_(s,h,{'name':p.name||'','task description':p.taskDescription||p.taskTitle||'','freq':p.freq||p.frequency||'One-Time','remarks':p.remarks||''});
+ return {success:true};
 }
-function masterAdd_(p){
- var s=masterSheet_();var h=getHeaders_(s);var id=masterNextId_(s);
- appendMapped_(s,h,{'task id':id,'name':p.name||'','task description':p.taskDescription||p.taskTitle||'','freq':p.freq||p.frequency||'One-Time','remarks':p.remarks||''});
- return {success:true,taskId:id};
-}
-function masterUpdate_(p){
- var s=masterSheet_();var h=getHeaders_(s);var row=masterFindRow_(s,p.taskId,p.row);
- if(row<0)throw new Error('MasterTasksList row not found.');
- if(p.name!==undefined)setByHeader_(s,h,row,['name'],p.name);
+function allUpdate_(p){
+ var s=allSheet_();var h=getHeaders_(s);var row=allCheckRow_(s,h,p.row,p);
+ if(p.name!==undefined)setByHeader_(s,h,row,['name','doer','assigned to'],p.name);
  if(p.taskDescription!==undefined||p.taskTitle!==undefined)setByHeader_(s,h,row,['task description','task','description'],p.taskDescription!==undefined?p.taskDescription:p.taskTitle);
  if(p.freq!==undefined||p.frequency!==undefined)setByHeader_(s,h,row,['freq','frequency'],p.freq!==undefined?p.freq:p.frequency);
  if(p.remarks!==undefined)setByHeader_(s,h,row,['remarks'],p.remarks);
- if(!s.getRange(row,1).getDisplayValue().trim())s.getRange(row,1).setValue(masterNextId_(s));
  return {success:true};
 }
-function masterDelete_(p){
- var s=masterSheet_();var row=masterFindRow_(s,p.taskId,p.row);
- if(row<0)throw new Error('MasterTasksList row not found.');
+function allDelete_(p){
+ var s=allSheet_();var h=getHeaders_(s);var row=allCheckRow_(s,h,p.row,p);
  s.deleteRow(row);
  return {success:true};
 }
@@ -170,7 +171,7 @@ function setupSheets(){
     'Checklist':TASK_HEADERS,
     'DELEGATION':TASK_HEADERS,
     'ACCESS CONTROL':['Username','Page','Access'],
-    'MasterTasksList':MASTER_HEADERS,
+    'AllTasksList':ALL_HEADERS,
     'HOLIDAYS':['Date','Occasion'],
     'Working Day Calendar':['Working Date'],
     'UNIQUE':['Value'],
@@ -196,7 +197,7 @@ function setupSheets(){
   var ac=ss.getSheetByName('ACCESS CONTROL'),acv=ac.getDataRange().getDisplayValues(),acHasAdmin=false;
   for(var j=1;j<acv.length;j++)if(String(acv[j][0]).trim().toLowerCase()==='admin')acHasAdmin=true;
   if(!acHasAdmin){
-    ['Dashboard','Checklist','Delegation','Calendar','Holidays','Reports & Score','Assign Task','Settings','History','Help & Support','Live Score','Admin Access','Master TasksList']
+    ['Dashboard','Checklist','Delegation','Calendar','Holidays','Reports & Score','Assign Task','Settings','History','Help & Support','Live Score','Admin Access','All TasksList']
       .forEach(function(p){ac.appendRow(['admin',p,'Full Access']);});
     ac.appendRow(['admin','Task Visibility','All Tasks']);
     ac.appendRow(['admin','Calendar Past','Allowed']);

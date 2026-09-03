@@ -7,6 +7,7 @@ const items=[
   ['holidays','Holidays',PartyPopper],
   ['reports','Reports & Score',BarChart3],
   ['livescore','Live Score',TrendingUp],
+  ['all-tasklist','All TasksList',ListChecks],
   ['history','History',History],
   ['help-support','Help & Support',LifeBuoy],
   ['settings','Settings',Settings],
@@ -33,9 +34,6 @@ export default function Sidebar({page,setPage,open,setOpen,session}){
    {session?.isAdmin&&<><div className="nav-divider"/>
    <button className={page==='admin-access'?'nav-item active':'nav-item'} onClick={()=>{setPage('admin-access');setOpen(false)}}>
     <ShieldCheck size={18}/><span>Admin Access</span>
-   </button>
-   <button className={page==='master-tasklist'?'nav-item active':'nav-item'} onClick={()=>{setPage('master-tasklist');setOpen(false)}}>
-    <ListChecks size={18}/><span>Master TasksList</span>
    </button></>}
   </nav>
   <div className="sidebar-bottom">

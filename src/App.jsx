@@ -11,7 +11,7 @@ import AssignTask from './pages/AssignTask'
 import {Settings} from './pages/SimplePages'
 import Login from './pages/Login'
 import AdminAccess from './pages/AdminAccess'
-import MasterTaskList from './pages/MasterTaskList'
+import AllTaskList from './pages/AllTaskList'
 import History from './pages/History'
 import HelpSupport from './pages/HelpSupport'
 import LiveScore from './pages/LiveScore'
@@ -36,7 +36,7 @@ export default function App(){
   assign:'Assign Task',
   settings:'Settings',
   'admin-access':'Admin Access',
-  'master-tasklist':'Master TasksList',
+  'all-tasklist':'All TasksList',
   history:'History',
   'help-support':'Help & Support',
   livescore:'Live Score'
@@ -52,7 +52,7 @@ export default function App(){
   case 'assign': content=<AssignTask {...props}/>;break
   case 'settings': content=<Settings {...props}/>;break
   case 'admin-access': content=session.isAdmin?<AdminAccess {...props} onSessionChanged={setSession}/>:<Dashboard {...props}/>;break
-  case 'master-tasklist': content=session.isAdmin?<MasterTaskList {...props}/>:<Dashboard {...props}/>;break
+  case 'all-tasklist': content=<AllTaskList {...props}/>;break
   case 'history': content=<History {...props}/>;break
   case 'help-support': content=<HelpSupport {...props}/>;break
   case 'livescore': content=<LiveScore {...props}/>;break

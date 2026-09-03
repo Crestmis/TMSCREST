@@ -1,4 +1,4 @@
-const KEY = 'crest_demo_store_v8'
+const KEY = 'crest_demo_store_v9'
 
 function localISO(offset=0){ const d=new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate()+offset); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 function localTimeNow(){ const d=new Date(); return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` }
@@ -11,8 +11,8 @@ const initial = {
   ],
   'ACCESS CONTROL':[
     {'Username':'admin','Page':'Dashboard','Access':'Full Access'},{'Username':'admin','Page':'Checklist','Access':'Full Access'},{'Username':'admin','Page':'Delegation','Access':'Full Access'},{'Username':'admin','Page':'Calendar','Access':'Full Access'},{'Username':'admin','Page':'Holidays','Access':'Full Access'},{'Username':'admin','Page':'Reports & Score','Access':'Full Access'},{'Username':'admin','Page':'Assign Task','Access':'Full Access'},{'Username':'admin','Page':'Settings','Access':'Full Access'},{'Username':'admin','Page':'History','Access':'Full Access'},{'Username':'admin','Page':'Help & Support','Access':'Full Access'},{'Username':'admin','Page':'Live Score','Access':'Full Access'},{'Username':'admin','Page':'Admin Access','Access':'Full Access'},{'Username':'admin','Page':'Task Visibility','Access':'All Tasks'},{'Username':'admin','Page':'Calendar Past','Access':'Allowed'},{'Username':'admin','Page':'Calendar Future','Access':'Allowed'},
-    {'Username':'rahul','Page':'Dashboard','Access':'Viewer'},{'Username':'rahul','Page':'Checklist','Access':'Editor'},{'Username':'rahul','Page':'Delegation','Access':'Editor'},{'Username':'rahul','Page':'Calendar','Access':'Viewer'},{'Username':'rahul','Page':'Holidays','Access':'Viewer'},{'Username':'rahul','Page':'Reports & Score','Access':'Viewer'},{'Username':'rahul','Page':'Assign Task','Access':'Viewer'},{'Username':'rahul','Page':'Settings','Access':'Viewer'},{'Username':'rahul','Page':'History','Access':'Viewer'},{'Username':'rahul','Page':'Help & Support','Access':'Viewer'},{'Username':'rahul','Page':'Live Score','Access':'Viewer'},{'Username':'rahul','Page':'Admin Access','Access':'None'},{'Username':'rahul','Page':'Calendar Past','Access':'Allowed'},{'Username':'rahul','Page':'Calendar Future','Access':'Denied'},
-    {'Username':'amit','Page':'Dashboard','Access':'Full Access'},{'Username':'amit','Page':'Checklist','Access':'Viewer'},{'Username':'amit','Page':'Delegation','Access':'Viewer'},{'Username':'amit','Page':'Calendar','Access':'Viewer'},{'Username':'amit','Page':'Holidays','Access':'Editor'},{'Username':'amit','Page':'Reports & Score','Access':'Viewer'},{'Username':'amit','Page':'Assign Task','Access':'Viewer'},{'Username':'amit','Page':'Settings','Access':'Viewer'},{'Username':'amit','Page':'History','Access':'Viewer'},{'Username':'amit','Page':'Help & Support','Access':'Viewer'},{'Username':'amit','Page':'Live Score','Access':'Viewer'},{'Username':'amit','Page':'Admin Access','Access':'None'},{'Username':'amit','Page':'Task Visibility','Access':'Own Tasks'},{'Username':'amit','Page':'Calendar Past','Access':'Allowed'},{'Username':'amit','Page':'Calendar Future','Access':'Allowed'}
+    {'Username':'rahul','Page':'Dashboard','Access':'Viewer'},{'Username':'rahul','Page':'Checklist','Access':'Editor'},{'Username':'rahul','Page':'Delegation','Access':'Editor'},{'Username':'rahul','Page':'Calendar','Access':'Viewer'},{'Username':'rahul','Page':'Holidays','Access':'Viewer'},{'Username':'rahul','Page':'Reports & Score','Access':'Viewer'},{'Username':'rahul','Page':'Assign Task','Access':'Viewer'},{'Username':'rahul','Page':'Settings','Access':'Viewer'},{'Username':'rahul','Page':'History','Access':'Viewer'},{'Username':'rahul','Page':'Help & Support','Access':'Viewer'},{'Username':'rahul','Page':'Live Score','Access':'Viewer'},{'Username':'rahul','Page':'All TasksList','Access':'Editor'},{'Username':'rahul','Page':'Admin Access','Access':'None'},{'Username':'rahul','Page':'Calendar Past','Access':'Allowed'},{'Username':'rahul','Page':'Calendar Future','Access':'Denied'},
+    {'Username':'amit','Page':'Dashboard','Access':'Full Access'},{'Username':'amit','Page':'Checklist','Access':'Viewer'},{'Username':'amit','Page':'Delegation','Access':'Viewer'},{'Username':'amit','Page':'Calendar','Access':'Viewer'},{'Username':'amit','Page':'Holidays','Access':'Editor'},{'Username':'amit','Page':'Reports & Score','Access':'Viewer'},{'Username':'amit','Page':'Assign Task','Access':'Viewer'},{'Username':'amit','Page':'Settings','Access':'Viewer'},{'Username':'amit','Page':'History','Access':'Viewer'},{'Username':'amit','Page':'Help & Support','Access':'Viewer'},{'Username':'amit','Page':'Live Score','Access':'Viewer'},{'Username':'amit','Page':'All TasksList','Access':'Viewer'},{'Username':'amit','Page':'Admin Access','Access':'None'},{'Username':'amit','Page':'Task Visibility','Access':'Own Tasks'},{'Username':'amit','Page':'Calendar Past','Access':'Allowed'},{'Username':'amit','Page':'Calendar Future','Access':'Allowed'}
   ],
   Checklist:[
     {'Task ID':'C-1001','Task Description':'Submit Daily Report','Department':'Operations','Given By':'rahul','Name':'rahul','Task Start Date':localISO(),'Task Start Time':'09:00','Freq':'Daily','Status':'Pending','Require Attachment':'No','Enable Reminders':'Yes'},
@@ -31,9 +31,9 @@ const initial = {
     {'Timestamp':new Date().toISOString(),'Task ID':'D-0999','Status':'Done','Completion Type':'ON_TIME','Next Target Date':'','Remarks':'Demo completion','Attachment':'','Submitted Date':new Date().toISOString(),'Actual Date':localISO(-1),'Actual Time':'09:40','Doer':'rahul','Task':'Completed Sample Task','Given By':'rahul','Department':'Operations'}
   ],
   'Working Day Calendar':[],
-  'MasterTasksList':[
-    {'Task ID':'M-1001','Name':'rahul','Task Description':'Monthly compliance review','Freq':'Monthly','Remarks':'Type entries here or on the Master TasksList page'},
-    {'Task ID':'M-1002','Name':'amit','Task Description':'Client renewal follow-up','Freq':'Quarterly','Remarks':''},
+  'AllTasksList':[
+    {'Name':'rahul','Task Description':'Monthly compliance review','Freq':'Monthly','Remarks':'Type entries here or on the All TasksList page'},
+    {'Name':'amit','Task Description':'Client renewal follow-up','Freq':'Quarterly','Remarks':''},
   ],
   'HOLIDAYS':[
     {'Date':localISO(2),'Occasion':'Ganesh Chaturthi'},
@@ -46,36 +46,36 @@ export function getStore(){const raw=localStorage.getItem(KEY);if(!raw)return se
 export function saveStore(store){localStorage.setItem(KEY,JSON.stringify(store));return store}
 export function resetDemoStore(){return seed()}
 export function getDemoSheet(name){return clone(getStore()[name]||[])}
-function masterNextIdDemo_(rows){const nums=(rows||[]).map(r=>String(r['Task ID']||'').match(/^M-(\d+)$/i)).filter(Boolean).map(m=>Number(m[1]));return `M-${Math.max(1000,...nums)+1}`}
-export function masterAddDemo({name,taskDescription,taskTitle,freq,frequency,remarks}){
- const store=getStore();store['MasterTasksList']=store['MasterTasksList']||[]
- const id=masterNextIdDemo_(store['MasterTasksList'])
- store['MasterTasksList'].push({'Task ID':id,'Name':name||'','Task Description':taskDescription||taskTitle||'','Freq':freq||frequency||'One-Time','Remarks':remarks||''})
- saveStore(store);return {success:true,demo:true,taskId:id}
+function allListIdx_(rows,row,expectName,expectTitle){
+ let idx=Number(row)-2
+ if(idx<0||idx>=rows.length)throw new Error('AllTasksList row not found. Refresh and try again.')
+ if(expectName!==undefined&&expectName!==''&&String(rows[idx]['Name']||'')!==String(expectName))throw new Error('That row changed in the sheet. Refresh and try again.')
+ if(expectTitle!==undefined&&expectTitle!==''&&String(rows[idx]['Task Description']||'')!==String(expectTitle))throw new Error('That row changed in the sheet. Refresh and try again.')
+ return idx
 }
-export function masterUpdateDemo({taskId,row,name,taskDescription,taskTitle,freq,frequency,remarks}){
- const store=getStore();const rows=store['MasterTasksList']||[]
- let idx=taskId?rows.findIndex(r=>String(r['Task ID'])===String(taskId)):-1
- if(idx<0&&row)idx=Number(row)-2
- if(idx<0||idx>=rows.length)throw new Error('MasterTasksList row not found.')
+export function allListAddDemo({name,taskDescription,taskTitle,freq,frequency,remarks}){
+ const store=getStore();store['AllTasksList']=store['AllTasksList']||[]
+ store['AllTasksList'].push({'Name':name||'','Task Description':taskDescription||taskTitle||'','Freq':freq||frequency||'One-Time','Remarks':remarks||''})
+ saveStore(store);return {success:true,demo:true}
+}
+export function allListUpdateDemo({row,name,taskDescription,taskTitle,freq,frequency,remarks,expectName,expectTitle}){
+ const store=getStore();const rows=store['AllTasksList']||[]
+ const idx=allListIdx_(rows,row,expectName,expectTitle)
  if(name!==undefined)rows[idx]['Name']=name
  if(taskDescription!==undefined||taskTitle!==undefined)rows[idx]['Task Description']=taskDescription!==undefined?taskDescription:taskTitle
  if(freq!==undefined||frequency!==undefined)rows[idx]['Freq']=freq!==undefined?freq:frequency
  if(remarks!==undefined)rows[idx]['Remarks']=remarks
- if(!rows[idx]['Task ID'])rows[idx]['Task ID']=masterNextIdDemo_(rows)
  saveStore(store);return {success:true,demo:true}
 }
-export function masterDeleteDemo({taskId,row}){
- const store=getStore();const rows=store['MasterTasksList']||[]
- let idx=taskId?rows.findIndex(r=>String(r['Task ID'])===String(taskId)):-1
- if(idx<0&&row)idx=Number(row)-2
- if(idx<0||idx>=rows.length)throw new Error('MasterTasksList row not found.')
+export function allListDeleteDemo({row,expectName,expectTitle}){
+ const store=getStore();const rows=store['AllTasksList']||[]
+ const idx=allListIdx_(rows,row,expectName,expectTitle)
  rows.splice(idx,1);saveStore(store);return {success:true,demo:true}
 }
 export function demoLoginUsers(){return clone(getStore().users)}
 export function demoAccessRows(username=''){return clone(getStore()['ACCESS CONTROL']||[]).filter(r=>!username||String(r.Username||'').toLowerCase()===String(username).toLowerCase())}
 export function submitDemoSupport(fields){const store=getStore();store['HELP & SUPPORT']=store['HELP & SUPPORT']||[];store['HELP & SUPPORT'].push({'Timestamp':new Date().toISOString(),'Doer Name':fields.doerName||fields.username||'','Department':fields.department||'','Request Type':fields.type||'Suggestion','Priority':fields.priority||'Normal','Subject':fields.subject||'','Details':fields.message||''});saveStore(store);return {success:true,demo:true}}
-export function createDemoUser({username,password,department='',role='user'}){const store=getStore();const u=String(username||'').trim().toLowerCase();if(!u||!password)throw new Error('Username and password are required.');if((store.users||[]).some(x=>String(x.username).toLowerCase()===u))throw new Error('Username already exists.');store.users=store.users||[];store.users.push({username:u,password:String(password),department:String(department||''),role:String(role||'user').toLowerCase()});store['ACCESS CONTROL']=store['ACCESS CONTROL']||[];['Dashboard','Checklist','Delegation','Calendar','Holidays','Reports & Score','Assign Task','Settings','History','Help & Support','Live Score'].forEach(Page=>store['ACCESS CONTROL'].push({Username:u,Page,Access:'Viewer'}));store['ACCESS CONTROL'].push({Username:u,Page:'Admin Access',Access:'None'},{Username:u,Page:'Task Visibility',Access:'Own Tasks'},{Username:u,Page:'Calendar Past',Access:'Allowed'},{Username:u,Page:'Calendar Future',Access:'Allowed'});saveStore(store);return {success:true,demo:true,username:u}}
+export function createDemoUser({username,password,department='',role='user'}){const store=getStore();const u=String(username||'').trim().toLowerCase();if(!u||!password)throw new Error('Username and password are required.');if((store.users||[]).some(x=>String(x.username).toLowerCase()===u))throw new Error('Username already exists.');store.users=store.users||[];store.users.push({username:u,password:String(password),department:String(department||''),role:String(role||'user').toLowerCase()});store['ACCESS CONTROL']=store['ACCESS CONTROL']||[];['Dashboard','Checklist','Delegation','Calendar','Holidays','Reports & Score','Assign Task','Settings','History','Help & Support','Live Score','All TasksList'].forEach(Page=>store['ACCESS CONTROL'].push({Username:u,Page,Access:'Viewer'}));store['ACCESS CONTROL'].push({Username:u,Page:'Admin Access',Access:'None'},{Username:u,Page:'Task Visibility',Access:'Own Tasks'},{Username:u,Page:'Calendar Past',Access:'Allowed'},{Username:u,Page:'Calendar Future',Access:'Allowed'});saveStore(store);return {success:true,demo:true,username:u}}
 export function saveDemoAccess(username,permissions){const store=getStore();const rows=(store['ACCESS CONTROL']||[]).filter(r=>String(r.Username||'').toLowerCase()!==String(username||'').toLowerCase());Object.entries(permissions||{}).forEach(([Page,Access])=>rows.push({Username:username,Page,Access}));store['ACCESS CONTROL']=rows;saveStore(store);return {success:true,demo:true}}
 
 export function updateDemoUser({username,newUsername,password,department,role}){

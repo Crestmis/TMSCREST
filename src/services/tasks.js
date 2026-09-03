@@ -67,11 +67,12 @@ export async function updateUser(fields){return postAppsScript({action:'updateUs
 export async function deleteUser(username){return postAppsScript({action:'deleteUser',username})}
 export async function fetchAllTasks(){const [c,d]=await Promise.all([fetchChecklist(),fetchDelegation()]);return [...c,...d]}
 
-// Master TasksList — a standalone, fully manual sheet (Task ID | Name | Task Description | Freq | Remarks).
-export async function fetchMasterTasks(){
-  const rows=await readRows(CONFIG.SHEETS.MASTER_TASKS)
+// AllTasksList — a standalone, fully manual sheet (Name | Task Description | Freq | Remarks).
+// No Task ID: rows are addressed by their sheet row number. Callers pass the row's
+// current Name/Description so the backend can refuse a stale edit after a refresh.
+export async function fetchAllTasksList(){
+  const rows=await readRows(CONFIG.SHEETS.ALL_TASKS)
   return rows.filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>({
-    id:String(pick(r,['Task ID','TaskId','TaskID'],'')),
     row:r._row,
     assignee:String(pick(r,['Name','Doer','Assigned To'],'')),
     title:String(pick(r,['Task Description','Task','Description'],'')),
@@ -80,9 +81,9 @@ export async function fetchMasterTasks(){
     raw:r
   }))
 }
-export async function masterAdd({name,taskDescription,freq,remarks}){return postAppsScript({action:'masterAdd',name,taskDescription,freq,remarks})}
-export async function masterUpdate({taskId,row,name,taskDescription,freq,remarks}){return postAppsScript({action:'masterUpdate',taskId,row,name,taskDescription,freq,remarks})}
-export async function masterDelete({taskId,row}){return postAppsScript({action:'masterDelete',taskId,row})}
+export async function allListAdd({name,taskDescription,freq,remarks}){return postAppsScript({action:'allAdd',name,taskDescription,freq,remarks})}
+export async function allListUpdate({row,name,taskDescription,freq,remarks,expectName,expectTitle}){return postAppsScript({action:'allUpdate',row,name,taskDescription,freq,remarks,expectName,expectTitle})}
+export async function allListDelete({row,expectName,expectTitle}){return postAppsScript({action:'allDelete',row,expectName,expectTitle})}
 export async function updateTask({taskId,taskType='checklist',taskTitle,assignee,department,givenBy,plannedDate,plannedTime,frequency,status,remarks}){
   const safeDate=plannedDate!==undefined?nextNonSunday(plannedDate):undefined
   return postAppsScript({action:'updateTask',taskId,taskType,taskTitle,assignee,department,givenBy,plannedDate:safeDate,plannedTime,frequency,status,remarks,sheetName:String(taskType).toLowerCase()==='checklist'?CONFIG.SHEETS.CHECKLIST:CONFIG.SHEETS.DELEGATION})

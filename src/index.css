@@ -283,7 +283,7 @@ body{background:var(--crest-bg);color:var(--crest-ink);font-family:Inter,ui-sans
 .delegation-summary:has(>div:nth-child(4)){grid-template-columns:repeat(4,1fr)}
 @media(max-width:700px){.delegation-summary:has(>div:nth-child(4)){grid-template-columns:1fr 1fr}}
 
-/* Destructive / icon-only buttons + Master TasksList console */
+/* Destructive / icon-only buttons + All TasksList console */
 .secondary-btn.icon-only{padding:8px 9px}
 .secondary-btn.danger{color:#b3403f;border-color:#ecccca}
 .secondary-btn.danger:hover{background:#fdf1f0;border-color:#e3a9a6;color:#992e2d}

@@ -5,7 +5,7 @@ import {loadUsers} from '../services/auth'
 import {fetchAccess,saveAccess} from '../services/sheets'
 import {createUser,updateUser,deleteUser} from '../services/tasks'
 
-const PAGES=['Dashboard','Checklist','Delegation','Calendar','Holidays','Reports & Score','Assign Task','Settings','History','Help & Support','Live Score','Admin Access','Master TasksList']
+const PAGES=['Dashboard','Checklist','Delegation','Calendar','Holidays','Reports & Score','Assign Task','Settings','History','Help & Support','Live Score','Admin Access','All TasksList']
 const LEVELS=['None','Viewer','Editor','Full Access']
 
 export default function AdminAccess({session,onSessionChanged}){
