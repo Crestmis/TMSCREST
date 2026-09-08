@@ -166,19 +166,24 @@ export function completeDemoTask(task,{status='Done',remarks='',nextTargetDate='
  const isChecklist=String(task.type||'').toLowerCase()==='checklist';
  const sheet=isChecklist?'Checklist':'DELEGATION';
  const rows=store[sheet]||[];
+ const planId=String(task.planId||'').trim();
+ const pk=String(task.plannedISO||'').slice(0,10);
+ const matchPlan=r=>planId&&String(r['Plan ID']||'').trim()===planId&&demoKey_(demoParse_(r['Task Start Date'])||new Date(0))===pk;
+ const matchTid=r=>{const tid=String(r['Task ID']||'').trim();return tid&&(tid===String(task.taskId||'')||tid===String(task.id));};
  let idx=-1; const hint=Number(task.row||0)-2;
- if(hint>=0&&hint<rows.length&&String(rows[hint]['Task ID'])===String(task.id))idx=hint;
- else idx=rows.findIndex(r=>String(r['Task ID'])===String(task.id));
+ if(hint>=0&&hint<rows.length&&(matchPlan(rows[hint])||matchTid(rows[hint])))idx=hint;
+ if(idx<0&&planId)idx=rows.findIndex(matchPlan);
+ if(idx<0)idx=rows.findIndex(matchTid);
  if(idx<0)throw new Error('Task not found in demo data.');
  if(!responsibilityConfirmed)throw new Error('Responsibility confirmation is required.');
  const planned=String(task.plannedISO||'').slice(0,10); const actual=actualDate||todayLocalISO(); const actualClock=actualTime||localTimeNow();
  if(planned&&actual<planned)throw new Error(`This task cannot be completed before ${task.planned||planned}.`);
  if(String(rows[idx].Status||'').toLowerCase()==='done')throw new Error('Task is already completed.');
  rows[idx].Status=status; rows[idx]['Actual Date']=actual; rows[idx]['Actual Time']=actualClock; rows[idx]['Completion Type']=completionType; rows[idx].Remarks=remarks; rows[idx]['Responsibility Confirmed']='Yes'; rows[idx]['Confirmed At']=new Date().toISOString();
- store['TASK HISTORY']=store['TASK HISTORY']||[]; store['TASK HISTORY'].push({'Task ID':task.id,'Task Description':task.title,'Task Type':task.type,'Doer':task.assignee,'Given By':task.givenBy,'Department':task.department,'Planned Date':task.plannedISO||'','Planned Time':task.plannedTime||'','Actual Date':actual,'Actual Time':actualClock,'Status':status,'Completion Type':completionType,'Remarks':remarks,'Submitted Date':new Date().toISOString()});
+ store['TASK HISTORY']=store['TASK HISTORY']||[]; store['TASK HISTORY'].push({'Task ID':task.taskId||task.id,'Plan ID':task.planId||'','Task Description':task.title,'Task Type':task.type,'Doer':task.assignee,'Given By':task.givenBy,'Department':task.department,'Planned Date':task.plannedISO||'','Planned Time':task.plannedTime||'','Actual Date':actual,'Actual Time':actualClock,'Status':status,'Completion Type':completionType,'Remarks':remarks,'Submitted Date':new Date().toISOString()});
  if(!isChecklist){
    store['DELEGATION DONE']=store['DELEGATION DONE']||[];
-   store['DELEGATION DONE'].push({'Timestamp':new Date().toISOString(),'Task ID':task.id,'Status':status,'Completion Type':completionType,'Next Target Date':nextTargetDate,'Remarks':remarks,'Attachment':attachmentUrl,'Submitted Date':new Date().toISOString(),'Actual Date':actual,'Actual Time':actualClock,'Responsibility Confirmed':'Yes','Doer':task.assignee,'Task':task.title,'Given By':task.givenBy,'Department':task.department});
+   store['DELEGATION DONE'].push({'Timestamp':new Date().toISOString(),'Task ID':task.taskId||task.id,'Plan ID':task.planId||'','Planned Date':task.plannedISO||'','Status':status,'Completion Type':completionType,'Next Target Date':nextTargetDate,'Remarks':remarks,'Attachment':attachmentUrl,'Submitted Date':new Date().toISOString(),'Actual Date':actual,'Actual Time':actualClock,'Responsibility Confirmed':'Yes','Doer':task.assignee,'Task':task.title,'Given By':task.givenBy,'Department':task.department});
  }
  saveStore(store);return {success:true,demo:true}
 }
@@ -278,7 +283,12 @@ export function generatePlannedMonthDemo({target='current'}={}){
  ;[['Task_Planned_CL','Checklist'],['Task_Planned_DL','DELEGATION']].forEach(([planSheetName,targetSheet])=>{
   const defs=store[planSheetName]||[]
   store[targetSheet]=store[targetSheet]||[]
-  const existing=new Set((store[targetSheet]||[]).map(r=>String(r['Task ID']||'')))
+  const existing=new Set()
+  ;(store[targetSheet]||[]).forEach(r=>{
+   const tid=String(r['Task ID']||'').trim(); if(tid)existing.add(tid)
+   const pid=String(r['Plan ID']||'').trim(); const dp=demoParse_(r['Task Start Date'])
+   if(pid&&dp)existing.add(pid+'|'+demoKey_(dp))
+  })
   defs.forEach((p,i)=>{
    if(planActive_(p['Active'])==='No')return
    const start=demoParse_(p['Start Date']);if(!start)return
@@ -294,10 +304,11 @@ export function generatePlannedMonthDemo({target='current'}={}){
     if(seen.has(k))return; seen.add(k)
     if(k<todayKey)return
     const id=planId+'#'+k
-    if(existing.has(id)){skipped++;return}
-    existing.add(id)
+    if(existing.has(id)||existing.has(planId+'|'+k)){skipped++;return}
+    existing.add(id); existing.add(planId+'|'+k)
     store[targetSheet].push({
      'Task ID':id,
+     'Plan ID':planId,
      'Task Description':p['Task Description']||'',
      'Department':p['Department']||'',
      'Given By':p['Given By']||'',
@@ -335,11 +346,18 @@ export function archiveCompletedDemo(){
  const now=new Date()
  const todayKey=demoKey_(new Date(now.getFullYear(),now.getMonth(),now.getDate()))
  store['TASK HISTORY']=store['TASK HISTORY']||[]
+ // identity of an occurrence: Plan ID + planned date (falls back to Task ID for legacy rows)
+ const occKey=(pid,pk,tid)=>pid&&pk?pid+'|'+pk:(tid||'')
  const seen=new Set()
- ;(store['TASK HISTORY']||[]).forEach(r=>{const tid=String(r['Task ID']||'').trim();if(tid.slice(-9)===' (missed)')seen.add(tid.slice(0,-9).trim()+'|missed');else seen.add(tid)})
+ ;(store['TASK HISTORY']||[]).forEach(r=>{
+  let tid=String(r['Task ID']||'').trim(); let missed=false
+  if(tid.slice(-9)===' (missed)'){tid=tid.slice(0,-9).trim();missed=true}
+  const pid=String(r['Plan ID']||'').trim(); const dp=demoParse_(r['Planned Date']||r['Task Start Date'])
+  const k=occKey(pid,dp?demoKey_(dp):'',tid)
+  if(k)seen.add(missed?k+'|missed':k)
+ })
  let archived=0,missedLogged=0,plansDeactivated=0
- const planOf=id=>{
-  const pid=id.indexOf('#')>0?id.slice(0,id.indexOf('#')):''
+ const planOf=pid=>{
   if(!pid)return null
   for(const s of ['Task_Planned_CL','Task_Planned_DL']){
    const p=(store[s]||[]).find(r=>String(r['Plan ID']||'').trim()===pid)
@@ -353,26 +371,30 @@ export function archiveCompletedDemo(){
   for(let i=rows.length-1;i>=0;i--){
    const r=rows[i]
    const st=String(r['Status']||'').trim().toLowerCase()
-   const id=String(r['Task ID']||'').trim()
+   const tid=String(r['Task ID']||'').trim()
+   let pid=String(r['Plan ID']||'').trim()
+   if(!pid&&tid.indexOf('#')>0)pid=tid.slice(0,tid.indexOf('#'))
    const plannedDate=demoParse_(r['Task Start Date'])
    const plannedKey=plannedDate?demoKey_(plannedDate):''
+   const key=occKey(pid,plannedKey,tid)
+   const generated=!!pid
    if(st==='done'||st==='delay'){
     const actDate=demoParse_(r['Actual Date'])
     const actKey=actDate?demoKey_(actDate):''
     if(!actKey||actKey>=todayKey)continue
-    if(!seen.has(id)){
-     store['TASK HISTORY'].push({'Task ID':id,'Task Description':r['Task Description']||'','Task Type':type,'Doer':r['Name']||'','Given By':r['Given By']||'','Department':r['Department']||'','Planned Date':r['Task Start Date']||'','Planned Time':r['Task Start Time']||'','Actual Date':actKey,'Actual Time':r['Actual Time']||'','Status':st==='delay'?'Delay':'Done','Completion Type':r['Completion Type']||'','Remarks':r['Remarks']||'','Submitted Date':new Date().toISOString()})
-     seen.add(id)
+    if(!seen.has(key)){
+     store['TASK HISTORY'].push({'Task ID':tid||key,'Plan ID':pid,'Task Description':r['Task Description']||'','Task Type':type,'Doer':r['Name']||'','Given By':r['Given By']||'','Department':r['Department']||'','Planned Date':r['Task Start Date']||'','Planned Time':r['Task Start Time']||'','Actual Date':actKey,'Actual Time':r['Actual Time']||'','Status':st==='delay'?'Delay':'Done','Completion Type':r['Completion Type']||'','Remarks':r['Remarks']||'','Submitted Date':new Date().toISOString()})
+     seen.add(key)
     }
     rows.splice(i,1);archived++
-    const pf=planOf(id)
+    const pf=planOf(pid)
     if(pf&&pf.freq==='one-time'&&String(pf.row['Active']||'').toLowerCase()!=='no'){pf.row['Active']='No';plansDeactivated++}
-   }else if(id.indexOf('#')>0&&plannedKey&&plannedKey<todayKey){
+   }else if(generated&&plannedKey&&plannedKey<todayKey){
     const days=Math.round((demoParse_(todayKey)-demoParse_(plannedKey))/86400000)
     if(days<2)continue
-    if(!seen.has(id+'|missed|'+plannedKey)){
-     store['TASK HISTORY'].push({'Task ID':id+' (missed)','Task Description':r['Task Description']||'','Task Type':type,'Doer':r['Name']||'','Given By':r['Given By']||'','Department':r['Department']||'','Planned Date':plannedKey,'Planned Time':r['Task Start Time']||'','Actual Date':'','Actual Time':'','Status':'Missed','Completion Type':'MISSED','Remarks':'Auto: not completed','Submitted Date':new Date().toISOString()})
-     seen.add(id+'|missed|'+plannedKey)
+    if(!seen.has(key+'|missed')){
+     store['TASK HISTORY'].push({'Task ID':(tid||key)+' (missed)','Plan ID':pid,'Task Description':r['Task Description']||'','Task Type':type,'Doer':r['Name']||'','Given By':r['Given By']||'','Department':r['Department']||'','Planned Date':plannedKey,'Planned Time':r['Task Start Time']||'','Actual Date':'','Actual Time':'','Status':'Missed','Completion Type':'MISSED','Remarks':'Auto: not completed','Submitted Date':new Date().toISOString()})
+     seen.add(key+'|missed')
     }
     rows.splice(i,1);missedLogged++
    }

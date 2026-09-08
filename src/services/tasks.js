@@ -43,8 +43,15 @@ export function mapTask(row,type){
   const rawStatus=String(pick(row,['Status','Task Status'],'Pending'))||'Pending'
   const actualRaw=pick(row,['Actual Date','Actual'],'')
   const actualTime=String(pick(row,['Actual Time'],'')||'')
+  const planId=String(pick(row,['Plan ID','PlanId','PlanID'],'')||'').trim()
+  const iso=normalizedPlanned||isoDate(plannedRaw)
+  // A per-occurrence id derived from the plan + its date (unique by construction).
+  // A stored Task ID is no longer required in the Checklist / DELEGATION sheet —
+  // the plan sheet and TASK HISTORY carry the identity. Legacy rows still work.
+  const rawTaskId=String(pick(row,['Task ID','TaskId','TaskID'],'')||'').trim()
   const task={
-    id:String(pick(row,['Task ID','TaskId','TaskID'],row._row)),
+    id:planId&&iso?`${planId}#${iso}`:(rawTaskId||String(row._row)),
+    planId,taskId:rawTaskId,
     title:String(pick(row,['Task Description','Task','Description','Task Title'],'Untitled task')),
     type,department:String(pick(row,['Department','Firm','Location'],'')),
     givenBy:String(pick(row,['Given By','GivenBy','Assigned By'],'')),
@@ -65,7 +72,7 @@ export function mapTask(row,type){
 export async function fetchChecklist(){return (await readRows(CONFIG.SHEETS.CHECKLIST)).filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>mapTask(r,'Checklist'))}
 export async function fetchDelegation(){return (await readRows(CONFIG.SHEETS.DELEGATION)).filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>mapTask(r,'Delegation'))}
 export async function fetchTaskHistory(){try{return (await readRows('TASK HISTORY')).filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>mapHistoryRow(r))}catch{return []}}
-function mapHistoryRow(r){const planned=pick(r,['Planned Date','Task Start Date','Planned'],'');const actual=pick(r,['Actual Date','Actual'],'');const actualTime=String(pick(r,['Actual Time'],'')||'');const status=String(pick(r,['Status','Task Status'],'Done'))||'Done';return {id:String(pick(r,['Task ID','TaskId','TaskID'],r._row)),title:String(pick(r,['Task Description','Task','Description'],'Untitled task')),type:String(pick(r,['Task Type','Type'],'Checklist')),department:String(pick(r,['Department'],'')),givenBy:String(pick(r,['Given By'],'')),assignee:String(pick(r,['Doer','Doer Name','Name','Assignee','Assigned To','Employee','Staff','Staff Name'],'')),plannedRaw:planned,planned:displayDate(isoDate(planned)||planned),plannedISO:isoDate(planned)||'',plannedTime:String(pick(r,['Planned Time','Set Time','Time'],'')),frequency:String(pick(r,['Frequency','Freq'],'One-Time')),status,liveStatus:status,actualRaw:actual,actualISO:isoDate(actual)||'',actualTime,actualDate:displayDate(actual),actual:displayDateTime(actual,actualTime),completionType:String(pick(r,['Completion Type'],'')),remarks:String(pick(r,['Remarks'],'')),row:r._row,raw:r}}
+function mapHistoryRow(r){const planned=pick(r,['Planned Date','Task Start Date','Planned'],'');const actual=pick(r,['Actual Date','Actual'],'');const actualTime=String(pick(r,['Actual Time'],'')||'');const status=String(pick(r,['Status','Task Status'],'Done'))||'Done';const planId=String(pick(r,['Plan ID','PlanId','PlanID'],'')||'').trim();const rawTaskId=String(pick(r,['Task ID','TaskId','TaskID'],'')||'').trim();const pIso=isoDate(planned)||'';return {id:planId&&pIso?`${planId}#${pIso}`:(rawTaskId||String(r._row)),planId,taskId:rawTaskId,title:String(pick(r,['Task Description','Task','Description'],'Untitled task')),type:String(pick(r,['Task Type','Type'],'Checklist')),department:String(pick(r,['Department'],'')),givenBy:String(pick(r,['Given By'],'')),assignee:String(pick(r,['Doer','Doer Name','Name','Assignee','Assigned To','Employee','Staff','Staff Name'],'')),plannedRaw:planned,planned:displayDate(isoDate(planned)||planned),plannedISO:isoDate(planned)||'',plannedTime:String(pick(r,['Planned Time','Set Time','Time'],'')),frequency:String(pick(r,['Frequency','Freq'],'One-Time')),status,liveStatus:status,actualRaw:actual,actualISO:isoDate(actual)||'',actualTime,actualDate:displayDate(actual),actual:displayDateTime(actual,actualTime),completionType:String(pick(r,['Completion Type'],'')),remarks:String(pick(r,['Remarks'],'')),row:r._row,raw:r}}
 export async function fetchDelegationHistory(){try{return (await readRows(CONFIG.SHEETS.DELEGATION_DONE)).filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>mapTask(r,'Delegation')).map(t=>({...t,status:String(pick(t.raw,['Status','Task Status'],'Done'))||'Done'}))}catch{return []}}
 
 // ---- History helpers ---------------------------------------------------------

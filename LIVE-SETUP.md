@@ -13,8 +13,15 @@ Everything else is machine‑managed:
 | Sheet | Role | Written by |
 |---|---|---|
 | `Task_Planned_CL` / `_DL` | task definitions — name, doer, start date, freq, active | **you** |
-| `Checklist` / `DELEGATION` | per‑occurrence rows (`PlanID#date`, Pending→Done) | the generator, then completion |
-| `TASK HISTORY` / `DELEGATION DONE` | archive of completed / missed occurrences | completion + daily maintenance |
+| `Checklist` / `DELEGATION` | per‑occurrence rows — a **`Plan ID`** column + `Task Start Date` are the identity; a `Task ID` column is optional | the generator, then completion |
+| `TASK HISTORY` / `DELEGATION DONE` | archive of completed / missed occurrences (carry `Plan ID` + `Planned Date`) | completion + daily maintenance |
+
+An occurrence is identified by **`Plan ID` + date**, not by a `Task ID` — so it
+is impossible for two rows to collide, and completing one day never affects
+another. `setupSheets` adds the `Plan ID` column; on an **existing** sheet, add
+a `Plan ID` header to `Checklist`, `DELEGATION`, `TASK HISTORY`,
+`DELEGATION DONE` (anywhere — matched by name). Legacy rows that only have a
+`Task ID` still work.
 
 Two triggers: **monthly generator** (1st, ~00:00) builds each month's occurrences;
 **daily maintenance** (~01:00) moves completions dated before today into
@@ -168,9 +175,9 @@ didn't take — recheck 3.1 and redeploy.
 - Values must equal the person's **login username** — `rahul`, not `Rahul Kumar`.
 - Full 17-column header row incl. `Actual Date`, `Actual Time`,
   `Completion Type`, `Responsibility Confirmed`, `Confirmed At`.
-- **You no longer type in these sheets.** The generator fills them; the doer
-  column matters only for the plan sheet's `Name`. Every row's `Task ID` is
-  `PlanID#date` — unique, so completing one day never affects another.
+- **You no longer type in these sheets.** The generator fills them. Identity is
+  the **`Plan ID`** column + `Task Start Date`; a `Task ID` column is optional
+  (add the `Plan ID` header to existing sheets — see §0).
 
 ---
 

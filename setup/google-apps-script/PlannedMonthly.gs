@@ -197,12 +197,21 @@ function _pmGenerateForMonth_(anchor) {
       var cActive  = col(['active', 'enabled']);
       if (cDesc < 0 || cName < 0 || cStart < 0 || cFreq < 0) return;
 
-      // existing Task IDs already in the target sheet -> idempotency set
+      // idempotency set — keyed by "PlanID|date" (and by Task ID for legacy rows)
       var existing = {};
       var tIdCol = findHeader_(th, ['task id', 'taskid']);
-      if (tIdCol >= 0) {
-        var tvals = target.getDataRange().getValues();
-        for (var r = 1; r < tvals.length; r++) existing[String(tvals[r][tIdCol]).trim()] = 1;
+      var tPidCol = findHeader_(th, ['plan id', 'planid']);
+      var tDateCol = findHeader_(th, ['task start date', 'planned date', 'date']);
+      var tvals = target.getDataRange().getValues();
+      for (var r = 1; r < tvals.length; r++) {
+        if (tIdCol >= 0) existing[String(tvals[r][tIdCol]).trim()] = 1;
+        var xpid = tPidCol >= 0 ? String(tvals[r][tPidCol]).trim() : '';
+        var xd = tDateCol >= 0 ? _pmKeyOrNull_(_pmParse_(tvals[r][tDateCol]), tz) : null;
+        if (!xpid && tIdCol >= 0) {
+          var xtid = String(tvals[r][tIdCol]).trim();
+          if (xtid.indexOf('#') > 0) { xpid = xtid.slice(0, xtid.indexOf('#')); xd = xd || xtid.slice(xtid.indexOf('#') + 1); }
+        }
+        if (xpid && xd) existing[xpid + '|' + xd] = 1;
       }
 
       var pvals = planSheet.getDataRange().getValues();
@@ -226,10 +235,11 @@ function _pmGenerateForMonth_(anchor) {
           var dk = occ[i];
           if (!PLANNED_INCLUDE_PAST_DAYS && dk < todayKey) continue;
           var instanceId = planId + '#' + dk;
-          if (existing[instanceId]) { summary.skipped++; continue; }
-          existing[instanceId] = 1;
+          if (existing[instanceId] || existing[planId + '|' + dk]) { summary.skipped++; continue; }
+          existing[instanceId] = 1; existing[planId + '|' + dk] = 1;
           appendMapped_(target, th, {
             'task id': instanceId,
+            'plan id': planId,
             'task description': cDesc >= 0 ? row[cDesc] : '',
             'task': cDesc >= 0 ? row[cDesc] : '',
             'department': cDept >= 0 ? row[cDept] : '',
@@ -407,17 +417,25 @@ function _pmArchiveCompleted_() {
   var todayKey = _pmKey_(new Date(now.getFullYear(), now.getMonth(), now.getDate()), tz);
 
   var hist = getOrCreateSheet_('TASK HISTORY',
-    ['Task ID', 'Task Description', 'Task Type', 'Doer', 'Given By', 'Department', 'Planned Date',
+    ['Task ID', 'Plan ID', 'Task Description', 'Task Type', 'Doer', 'Given By', 'Department', 'Planned Date',
      'Planned Time', 'Actual Date', 'Actual Time', 'Status', 'Completion Type', 'Remarks', 'Submitted Date']);
   var hh = getHeaders_(hist);
   var hIdCol = findHeader_(hh, ['task id', 'taskid']);
-  var hActCol = findHeader_(hh, ['actual date', 'actual']);
+  var hPidCol = findHeader_(hh, ['plan id', 'planid']);
+  var hPdCol = findHeader_(hh, ['planned date', 'task start date', 'date']);
+  // identity of an occurrence: "PlanID|plannedDate" (Task ID for legacy rows)
+  var occKey_ = function (pid, pk, tid) { return (pid && pk) ? (pid + '|' + pk) : (tid || ''); };
   var seen = {};
   var hv = hist.getDataRange().getValues();
   for (var r = 1; r < hv.length; r++) {
     var tid = String(hv[r][hIdCol]).trim();
-    if (tid.slice(-9) === ' (missed)') seen[tid.slice(0, -9).trim() + '|missed'] = 1;
-    else seen[tid] = 1;   // a generated instance id (PlanID#date) is unique to one occurrence
+    var missed = tid.slice(-9) === ' (missed)';
+    if (missed) tid = tid.slice(0, -9).trim();
+    var pid = hPidCol >= 0 ? String(hv[r][hPidCol]).trim() : '';
+    var pk = hPdCol >= 0 ? _pmKeyOrNull_(_pmParse_(hv[r][hPdCol]), tz) : null;
+    if (!pid && tid.indexOf('#') > 0) { pid = tid.slice(0, tid.indexOf('#')); pk = pk || tid.slice(tid.indexOf('#') + 1); }
+    var k = occKey_(pid, pk, tid);
+    if (k) seen[missed ? k + '|missed' : k] = 1;
   }
 
   var lock = LockService.getScriptLock();
@@ -430,7 +448,7 @@ function _pmArchiveCompleted_() {
       var sheet = ss.getSheetByName(name); if (!sheet) return;
       var h = getHeaders_(sheet);
       var c = function (a) { return findHeader_(h, a); };
-      var cId = c(['task id', 'taskid']), cStat = c(['status', 'task status']);
+      var cId = c(['task id', 'taskid']), cPid = c(['plan id', 'planid']), cStat = c(['status', 'task status']);
       var cAct = c(['actual date', 'actual']), cActT = c(['actual time']);
       var cDesc = c(['task description', 'task', 'description']), cName = c(['name', 'doer', 'assigned to']);
       var cGiven = c(['given by']), cDept = c(['department', 'firm']);
@@ -443,15 +461,20 @@ function _pmArchiveCompleted_() {
       for (var rr = vals.length - 1; rr >= 1; rr--) {
         var row = vals[rr];
         var st = String(row[cStat] || '').trim().toLowerCase();
-        var id = cId >= 0 ? String(row[cId]).trim() : '';
+        var tid = cId >= 0 ? String(row[cId]).trim() : '';
         var plannedKey = cPlan >= 0 ? _pmKeyOrNull_(_pmParse_(row[cPlan]), tz) : null;
+        var pid = cPid >= 0 ? String(row[cPid]).trim() : '';
+        if (!pid && tid.indexOf('#') > 0) pid = tid.slice(0, tid.indexOf('#'));
+        var key = occKey_(pid, plannedKey, tid);
+        var generated = !!pid;
 
         if (st === 'done' || st === 'delay') {
           var actKey = cAct >= 0 ? _pmKeyOrNull_(_pmParse_(row[cAct]), tz) : null;
           if (!actKey || actKey >= todayKey) continue;          // keep today's completions until tomorrow
-          if (!seen[id]) {                                       // not already in TASK HISTORY
+          if (!seen[key]) {                                      // not already in TASK HISTORY
             appendMapped_(hist, hh, {
-              'task id': id, 'task description': cDesc >= 0 ? row[cDesc] : '', 'task type': type,
+              'task id': tid || key, 'plan id': pid,
+              'task description': cDesc >= 0 ? row[cDesc] : '', 'task type': type,
               'doer': cName >= 0 ? row[cName] : '', 'given by': cGiven >= 0 ? row[cGiven] : '',
               'department': cDept >= 0 ? row[cDept] : '',
               'planned date': plannedKey || '', 'planned time': cPlanT >= 0 ? row[cPlanT] : '',
@@ -459,12 +482,11 @@ function _pmArchiveCompleted_() {
               'status': st === 'delay' ? 'Delay' : 'Done', 'completion type': cCT >= 0 ? row[cCT] : '',
               'remarks': cRem >= 0 ? row[cRem] : '', 'submitted date': new Date()
             });
-            seen[id] = 1;
+            seen[key] = 1;
           }
           sheet.deleteRow(rr + 1);
           out.archived++;
           if (PLANNED_DEACTIVATE_DONE_ONE_TIME) {
-            var pid = id.indexOf('#') > 0 ? id.slice(0, id.indexOf('#')) : '';
             var pe = pid && planIdx[pid];
             if (pe && pe.freq === 'one-time') {
               var aCol = findHeader_(pe.headers, ['active', 'enabled']);
@@ -474,11 +496,12 @@ function _pmArchiveCompleted_() {
               }
             }
           }
-        } else if (PLANNED_SWEEP_MISSED && id.indexOf('#') > 0 && plannedKey && plannedKey < todayKey
+        } else if (PLANNED_SWEEP_MISSED && generated && plannedKey && plannedKey < todayKey
                    && _pmDaysBetween_(plannedKey, todayKey) >= PLANNED_MISSED_GRACE_DAYS) {
-          if (!seen[id + '|missed|' + plannedKey]) {
+          if (!seen[key + '|missed']) {
             appendMapped_(hist, hh, {
-              'task id': id + ' (missed)', 'task description': cDesc >= 0 ? row[cDesc] : '', 'task type': type,
+              'task id': (tid || key) + ' (missed)', 'plan id': pid,
+              'task description': cDesc >= 0 ? row[cDesc] : '', 'task type': type,
               'doer': cName >= 0 ? row[cName] : '', 'given by': cGiven >= 0 ? row[cGiven] : '',
               'department': cDept >= 0 ? row[cDept] : '',
               'planned date': plannedKey, 'planned time': cPlanT >= 0 ? row[cPlanT] : '',
@@ -486,7 +509,7 @@ function _pmArchiveCompleted_() {
               'status': 'Missed', 'completion type': 'MISSED',
               'remarks': 'Auto: not completed', 'submitted date': new Date()
             });
-            seen[id + '|missed|' + plannedKey] = 1;
+            seen[key + '|missed'] = 1;
           }
           sheet.deleteRow(rr + 1);
           out.missedLogged++;
