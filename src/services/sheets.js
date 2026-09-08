@@ -17,6 +17,7 @@ export async function postAppsScript(fields){
    if(fields.action==='createUser'){return createDemoUser(fields)}
    if(fields.action==='updateUser'){return updateDemoUser(fields)}
    if(fields.action==='deleteUser'){return deleteDemoUser(fields)}
+   if(fields.action==='saveAccess'){return saveDemoAccess(fields.username,fields.permissions)}
    if(fields.action==='updateTask'){return updateDemoTask(fields)}
    if(fields.action==='deleteTask'){return deleteDemoTask(fields)}
    if(fields.action==='saveHoliday'){return saveDemoHoliday(fields)}
