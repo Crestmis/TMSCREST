@@ -72,16 +72,16 @@ export default function Delegation({ session, setPage, refresh, onChanged, setAs
   }, [tab, current, history, q, doer, date, status])
 
   const pending = canEdit ? list.filter(t => String(t.liveStatus || t.status).toLowerCase() !== 'done') : []
-  const allSelected = pending.length > 0 && pending.every(t => selected.has(`${t.type}:${t.id}`))
+  const allSelected = pending.length > 0 && pending.every(t => selected.has(`${t.type}:${t.id}:${t.row}`))
 
   const toggle = t => setSelected(prev => {
     const n = new Set(prev)
-    const k = `${t.type}:${t.id}`
+    const k = `${t.type}:${t.id}:${t.row}`
     n.has(k) ? n.delete(k) : n.add(k)
     return n
   })
-  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(pending.map(t => `${t.type}:${t.id}`)))
-  const selectedTasks = list.filter(t => selected.has(`${t.type}:${t.id}`))
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(pending.map(t => `${t.type}:${t.id}:${t.row}`)))
+  const selectedTasks = list.filter(t => selected.has(`${t.type}:${t.id}:${t.row}`))
 
   const clearFilters = () => { setDoer('all'); setDate(''); setStatus('all'); setSelected(new Set()) }
   const activeCount = (doer !== 'all' ? 1 : 0) + (date ? 1 : 0) + (status !== 'all' ? 1 : 0)
@@ -170,7 +170,7 @@ export default function Delegation({ session, setPage, refresh, onChanged, setAs
               key={`${t.id}-${t.row}-${tab}`}
               task={t}
               selectable={tab === 'current' && canEdit}
-              selected={selected.has(`${t.type}:${t.id}`)}
+              selected={selected.has(`${t.type}:${t.id}:${t.row}`)}
               onSelect={canEdit ? toggle : undefined}
               onComplete={canEdit && tab === 'current' ? task => setDrawer([task]) : undefined}
             />

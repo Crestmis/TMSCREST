@@ -127,22 +127,22 @@ export default function Tasks({ session, refresh, setPage, setAssignHint }) {
     return s
   }, [filtered])
 
-  const allSelected = pending.length > 0 && pending.every(t => selected.has(`${t.type}:${t.id}`))
+  const allSelected = pending.length > 0 && pending.every(t => selected.has(`${t.type}:${t.id}:${t.row}`))
 
   const toggle = t => {
     setSelected(prev => {
       const next = new Set(prev)
-      const key = `${t.type}:${t.id}`
+      const key = `${t.type}:${t.id}:${t.row}`
       next.has(key) ? next.delete(key) : next.add(key)
       return next
     })
   }
 
   const toggleAll = () => {
-    setSelected(allSelected ? new Set() : new Set(pending.map(t => `${t.type}:${t.id}`)))
+    setSelected(allSelected ? new Set() : new Set(pending.map(t => `${t.type}:${t.id}:${t.row}`)))
   }
 
-  const selectedTasks = filtered.filter(t => selected.has(`${t.type}:${t.id}`))
+  const selectedTasks = filtered.filter(t => selected.has(`${t.type}:${t.id}:${t.row}`))
 
   const clearFilters = () => {
     setStatus('all')
@@ -253,7 +253,7 @@ export default function Tasks({ session, refresh, setPage, setAssignHint }) {
             <TaskRow
               key={`${t.type}-${t.id}-${t.row}-${tab}`}
               task={t}
-              selected={selected.has(`${t.type}:${t.id}`)}
+              selected={selected.has(`${t.type}:${t.id}:${t.row}`)}
               onSelect={canEdit && tab === 'current' ? toggle : undefined}
               selectable={canEdit && tab === 'current'}
               onComplete={canEdit && tab === 'current' ? (task => setDrawer([task])) : undefined}

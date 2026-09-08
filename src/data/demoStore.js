@@ -165,7 +165,10 @@ export function completeDemoTask(task,{status='Done',remarks='',nextTargetDate='
  const store=getStore();
  const isChecklist=String(task.type||'').toLowerCase()==='checklist';
  const sheet=isChecklist?'Checklist':'DELEGATION';
- const rows=store[sheet]||[]; const idx=rows.findIndex(r=>String(r['Task ID'])===String(task.id));
+ const rows=store[sheet]||[];
+ let idx=-1; const hint=Number(task.row||0)-2;
+ if(hint>=0&&hint<rows.length&&String(rows[hint]['Task ID'])===String(task.id))idx=hint;
+ else idx=rows.findIndex(r=>String(r['Task ID'])===String(task.id));
  if(idx<0)throw new Error('Task not found in demo data.');
  if(!responsibilityConfirmed)throw new Error('Responsibility confirmation is required.');
  const planned=String(task.plannedISO||'').slice(0,10); const actual=actualDate||todayLocalISO(); const actualClock=actualTime||localTimeNow();

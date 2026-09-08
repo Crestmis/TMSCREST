@@ -99,7 +99,7 @@ export default function CompletionDrawer({task,tasks,onClose,onDone}){
        <tr><th>Task Name</th><th>Planned Date</th><th>Actual Date &amp; Time</th><th>Status</th><th>Timing</th></tr>
       </thead>
       <tbody>
-       {evaluations.map(t=><tr key={`${t.type}-${t.id}`} className={`confirm-row-${t.dateRelation}`}>
+       {evaluations.map(t=><tr key={`${t.type}-${t.id}-${t.row}`} className={`confirm-row-${t.dateRelation}`}>
         <td title={t.title}>{t.title}</td>
         <td>{prettyDateTime(t.plannedISO,t.plannedTime)}</td>
         <td>{prettyDateTime(actual,actualClock)}</td>
