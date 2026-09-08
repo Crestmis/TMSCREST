@@ -17,8 +17,10 @@ import CollapsibleControls from '../components/CollapsibleControls'
 import {
   fetchChecklist,
   fetchChecklistHistory,
-  visibleToUser
+  visibleToUser,
+  isFuturePlanned
 } from '../services/tasks'
+import { normalize, localISO } from '../services/sheets'
 
 export default function Tasks({ session, refresh, setPage, setAssignHint }) {
   // Anyone who can open this page (Viewer / Editor / Full Access) may select and submit tasks.
@@ -44,10 +46,18 @@ export default function Tasks({ session, refresh, setPage, setAssignHint }) {
     setError('')
     try {
       const [all, hist] = await Promise.all([fetchChecklist(), fetchChecklistHistory()])
-      // "Current" = open work only. Completed items live on the History tab.
-      const open = all.filter(t => !['done', 'delay'].includes(String(t.liveStatus || t.status).toLowerCase()))
-      setCurrent(visibleToUser(open, session))
-      setHistory(visibleToUser(hist, session))
+      const today = localISO()
+      const isFinished = t => ['done', 'delay'].includes(String(t.liveStatus || t.status).toLowerCase())
+      // "Current" = this user's open work that is due now (future-dated rows stay
+      // hidden until their planned date), PLUS anything completed *today* — kept
+      // visible with a Done tick until local midnight, then it moves to History.
+      const currentList = visibleToUser(all, session).filter(t =>
+        isFinished(t) ? t.actualISO === today : !isFuturePlanned(t)
+      )
+      // "History" = every completed record except today's (still shown on Current).
+      const historyList = visibleToUser(hist, session).filter(t => t.actualISO !== today)
+      setCurrent(currentList)
+      setHistory(historyList)
       setSelected(new Set())
     } catch (e) {
       setError(e.message)
@@ -71,10 +81,14 @@ export default function Tasks({ session, refresh, setPage, setAssignHint }) {
     return { monday, saturday }
   }, [])
 
-  const doers = useMemo(
-    () => [...new Set([...current, ...history].map(t => t.assignee).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
-    [current, history]
-  )
+  const doers = useMemo(() => {
+    const seen = new Map()
+    ;[...current, ...history].forEach(t => {
+      const a = String(t.assignee || '').trim()
+      if (a && !seen.has(a.toLowerCase())) seen.set(a.toLowerCase(), a)
+    })
+    return [...seen.values()].sort((a, b) => a.localeCompare(b))
+  }, [current, history])
 
   const filtered = useMemo(() => {
     const src = tab === 'current' ? current : history
@@ -83,7 +97,7 @@ export default function Tasks({ session, refresh, setPage, setAssignHint }) {
         const live = t.liveStatus || t.status || 'Pending'
         return (
           (status === 'all' || String(live).toLowerCase() === status) &&
-          (doer === 'all' || t.assignee === doer) &&
+          (doer === 'all' || normalize(t.assignee) === normalize(doer)) &&
           (!date || t.plannedISO === date || t.actualISO === date) &&
           (!q ||
             `${t.title} ${t.assignee} ${t.givenBy} ${t.id}`

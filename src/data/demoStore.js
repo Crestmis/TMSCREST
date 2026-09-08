@@ -160,8 +160,8 @@ export function completeDemoTask(task,{status='Done',remarks='',nextTargetDate='
  const rows=store[sheet]||[]; const idx=rows.findIndex(r=>String(r['Task ID'])===String(task.id));
  if(idx<0)throw new Error('Task not found in demo data.');
  if(!responsibilityConfirmed)throw new Error('Responsibility confirmation is required.');
- const planned=String(task.plannedISO||''); const actual=actualDate||todayLocalISO(); const actualClock=actualTime||localTimeNow(); const freq=String(task.frequency||'One-Time').trim().toLowerCase();
- if(freq==='daily'&&planned&&actual<planned)throw new Error(`Daily task cannot be completed before ${task.planned||planned}.`);
+ const planned=String(task.plannedISO||'').slice(0,10); const actual=actualDate||todayLocalISO(); const actualClock=actualTime||localTimeNow();
+ if(planned&&actual<planned)throw new Error(`This task cannot be completed before ${task.planned||planned}.`);
  if(String(rows[idx].Status||'').toLowerCase()==='done')throw new Error('Task is already completed.');
  rows[idx].Status=status; rows[idx]['Actual Date']=actual; rows[idx]['Actual Time']=actualClock; rows[idx]['Completion Type']=completionType; rows[idx].Remarks=remarks; rows[idx]['Responsibility Confirmed']='Yes'; rows[idx]['Confirmed At']=new Date().toISOString();
  store['TASK HISTORY']=store['TASK HISTORY']||[]; store['TASK HISTORY'].push({'Task ID':task.id,'Task Description':task.title,'Task Type':task.type,'Doer':task.assignee,'Given By':task.givenBy,'Department':task.department,'Planned Date':task.plannedISO||'','Planned Time':task.plannedTime||'','Actual Date':actual,'Actual Time':actualClock,'Status':status,'Completion Type':completionType,'Remarks':remarks,'Submitted Date':new Date().toISOString()});

@@ -28,6 +28,14 @@ export function getTaskStatus(task, now=new Date()){
   return diff>24*60*60*1000?'Overdue':'Pending'
 }
 
+// A task can only be worked on once its planned date has arrived. Anything dated
+// after today is "future" — hidden from the Checklist / Delegation completion
+// lists and rejected by the completion popup and the backend.
+export function isFuturePlanned(task,todayISO=localISO()){
+  const p=String(task?.plannedISO||'').slice(0,10)
+  return !!p && p>todayISO
+}
+
 export function mapTask(row,type){
   const plannedRaw=pick(row,['Task Start Date','Start Date','Planned Date','Date','Planned'],'')
   const normalizedPlanned=nextNonSunday(isoDate(plannedRaw))
@@ -40,7 +48,7 @@ export function mapTask(row,type){
     title:String(pick(row,['Task Description','Task','Description','Task Title'],'Untitled task')),
     type,department:String(pick(row,['Department','Firm','Location'],'')),
     givenBy:String(pick(row,['Given By','GivenBy','Assigned By'],'')),
-    assignee:String(pick(row,['Name','Doer','Assigned To','Username'],'')),
+    assignee:String(pick(row,['Name','Doer','Doer Name','Assignee','Assigned To','Assigned','Employee','Employee Name','Staff','Staff Name','Emp Name','Person','Username'],'')),
     plannedRaw,planned:displayDate(normalizedPlanned||plannedRaw),plannedISO:normalizedPlanned||isoDate(plannedRaw),
     plannedTime,frequency:String(pick(row,['Freq','Frequency'],'One-Time')),
     status:rawStatus,requireAttachment:normalize(pick(row,['Require Attachment'],''))==='yes',
@@ -57,7 +65,7 @@ export function mapTask(row,type){
 export async function fetchChecklist(){return (await readRows(CONFIG.SHEETS.CHECKLIST)).filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>mapTask(r,'Checklist'))}
 export async function fetchDelegation(){return (await readRows(CONFIG.SHEETS.DELEGATION)).filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>mapTask(r,'Delegation'))}
 export async function fetchTaskHistory(){try{return (await readRows('TASK HISTORY')).filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>mapHistoryRow(r))}catch{return []}}
-function mapHistoryRow(r){const planned=pick(r,['Planned Date','Task Start Date','Planned'],'');const actual=pick(r,['Actual Date','Actual'],'');const actualTime=String(pick(r,['Actual Time'],'')||'');const status=String(pick(r,['Status','Task Status'],'Done'))||'Done';return {id:String(pick(r,['Task ID','TaskId','TaskID'],r._row)),title:String(pick(r,['Task Description','Task','Description'],'Untitled task')),type:String(pick(r,['Task Type','Type'],'Checklist')),department:String(pick(r,['Department'],'')),givenBy:String(pick(r,['Given By'],'')),assignee:String(pick(r,['Doer','Name','Assignee'],'')),plannedRaw:planned,planned:displayDate(isoDate(planned)||planned),plannedISO:isoDate(planned)||'',plannedTime:String(pick(r,['Planned Time','Set Time','Time'],'')),frequency:String(pick(r,['Frequency','Freq'],'One-Time')),status,liveStatus:status,actualRaw:actual,actualISO:isoDate(actual)||'',actualTime,actualDate:displayDate(actual),actual:displayDateTime(actual,actualTime),completionType:String(pick(r,['Completion Type'],'')),remarks:String(pick(r,['Remarks'],'')),row:r._row,raw:r}}
+function mapHistoryRow(r){const planned=pick(r,['Planned Date','Task Start Date','Planned'],'');const actual=pick(r,['Actual Date','Actual'],'');const actualTime=String(pick(r,['Actual Time'],'')||'');const status=String(pick(r,['Status','Task Status'],'Done'))||'Done';return {id:String(pick(r,['Task ID','TaskId','TaskID'],r._row)),title:String(pick(r,['Task Description','Task','Description'],'Untitled task')),type:String(pick(r,['Task Type','Type'],'Checklist')),department:String(pick(r,['Department'],'')),givenBy:String(pick(r,['Given By'],'')),assignee:String(pick(r,['Doer','Doer Name','Name','Assignee','Assigned To','Employee','Staff','Staff Name'],'')),plannedRaw:planned,planned:displayDate(isoDate(planned)||planned),plannedISO:isoDate(planned)||'',plannedTime:String(pick(r,['Planned Time','Set Time','Time'],'')),frequency:String(pick(r,['Frequency','Freq'],'One-Time')),status,liveStatus:status,actualRaw:actual,actualISO:isoDate(actual)||'',actualTime,actualDate:displayDate(actual),actual:displayDateTime(actual,actualTime),completionType:String(pick(r,['Completion Type'],'')),remarks:String(pick(r,['Remarks'],'')),row:r._row,raw:r}}
 export async function fetchDelegationHistory(){try{return (await readRows(CONFIG.SHEETS.DELEGATION_DONE)).filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>mapTask(r,'Delegation')).map(t=>({...t,status:String(pick(t.raw,['Status','Task Status'],'Done'))||'Done'}))}catch{return []}}
 
 // ---- History helpers ---------------------------------------------------------

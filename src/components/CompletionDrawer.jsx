@@ -14,14 +14,13 @@ function prettyDateTime(dateISO,timeHM){
 }
 function plural(n){return n===1?'':'s'}
 
-function frequencyOf(t){return String(t.frequency||'One-Time').trim().toLowerCase()}
-
 function classify(t,actual){
- const planned=t.plannedISO||''
+ const planned=(t.plannedISO||'').slice(0,10)
  if(!planned)return {status:'Done',early:false,eligible:true}
- const daily=frequencyOf(t)==='daily'
- if(daily&&actual<planned)return {status:'Pending',early:false,eligible:false,reason:`Daily task is only available on ${pretty(planned)}.`}
- if(actual<planned)return {status:'Done',early:true,eligible:true}
+ // No task can be completed before its planned date, whatever its frequency.
+ // (Previously only Daily tasks were date-gated; weekly/monthly/one-time/delegation
+ // could be ticked off ahead of time.)
+ if(actual<planned)return {status:'Pending',early:false,eligible:false,reason:`Not due until ${pretty(planned)}.`}
  if(actual===planned)return {status:'Done',early:false,eligible:true}
  return {status:'Delay',early:false,eligible:true}
 }

@@ -4,7 +4,8 @@ import PageHeader from '../components/PageHeader'
 import TaskRow from '../components/TaskRow'
 import CompletionDrawer from '../components/CompletionDrawer'
 import CollapsibleControls from '../components/CollapsibleControls'
-import { fetchDelegation, fetchDelegationHistory, visibleToUser } from '../services/tasks'
+import { fetchDelegation, fetchDelegationHistory, visibleToUser, isFuturePlanned } from '../services/tasks'
+import { normalize, localISO } from '../services/sheets'
 
 export default function Delegation({ session, setPage, refresh, onChanged, setAssignHint }) {
   // Anyone who can open this page (Viewer / Editor / Full Access) may select and submit tasks.
@@ -30,8 +31,15 @@ export default function Delegation({ session, setPage, refresh, onChanged, setAs
     setError('')
     try {
       const [a, b] = await Promise.all([fetchDelegation(), fetchDelegationHistory()])
-      setCurrent(visibleToUser(a, session))
-      setHistory(visibleToUser(b, session))
+      const today = localISO()
+      const isFinished = t => ['done', 'delay'].includes(String(t.liveStatus || t.status).toLowerCase())
+      // "Current" = this user's due delegations (future-dated ones stay hidden),
+      // PLUS anything completed today — shown ticked until local midnight, then
+      // it moves to the History tab.
+      setCurrent(visibleToUser(a, session).filter(t =>
+        isFinished(t) ? t.actualISO === today : !isFuturePlanned(t)
+      ))
+      setHistory(visibleToUser(b, session).filter(t => t.actualISO !== today))
       setSelected(new Set())
     } catch (e) {
       setError(e.message)
@@ -42,17 +50,21 @@ export default function Delegation({ session, setPage, refresh, onChanged, setAs
 
   useEffect(() => { load() }, [refresh, session.username])
 
-  const doers = useMemo(
-    () => [...new Set([...current, ...history].map(t => t.assignee).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
-    [current, history]
-  )
+  const doers = useMemo(() => {
+    const seen = new Map()
+    ;[...current, ...history].forEach(t => {
+      const a = String(t.assignee || '').trim()
+      if (a && !seen.has(a.toLowerCase())) seen.set(a.toLowerCase(), a)
+    })
+    return [...seen.values()].sort((a, b) => a.localeCompare(b))
+  }, [current, history])
 
   const list = useMemo(() => {
     return (tab === 'current' ? current : history).filter(t => {
       const live = String(t.liveStatus || t.status || 'Pending').toLowerCase()
       return (
         (!q || `${t.title} ${t.assignee} ${t.givenBy} ${t.id}`.toLowerCase().includes(q.toLowerCase())) &&
-        (doer === 'all' || t.assignee === doer) &&
+        (doer === 'all' || normalize(t.assignee) === normalize(doer)) &&
         (status === 'all' || live === status) &&
         (!date || t.plannedISO === date || t.actualISO === date)
       )
