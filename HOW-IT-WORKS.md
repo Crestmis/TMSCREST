@@ -48,9 +48,15 @@ Consequences:
 - The **Calendar** is the only screen where a recurring row is shown on many
   dates — and those extra chips are display only.
 
-If you need a Daily task to genuinely reappear as fresh pending work every day,
-add a Google Sheets **time‑driven trigger** that resets `Status`/`Task Start
-Date`, or appends new rows each cycle. Nothing in this repo does that.
+If you need a Daily task to genuinely reappear as fresh pending work every
+cycle, add the optional
+[`setup/google-apps-script/Recurring.gs`](setup/google-apps-script/Recurring.gs)
+to the Apps Script project. Its nightly trigger rolls each recurring row
+forward to its current cycle (bumps `Task Start Date`, resets `Status` to
+`Pending`, clears the Actual* cells) and logs a `Missed` row to `TASK HISTORY`
+for any cycle that rolled over uncompleted. See the header comment in that file
+for setup (`installRecurringTrigger`). Without it, the base app never
+auto‑recurs — one row = one task.
 
 ---
 
@@ -856,7 +862,7 @@ Vercel:
 | # | Issue | Where |
 |---|---|---|
 | 1 | **Old Daily tasks vanish from the Calendar** — the occurrence loop is capped at 370 steps from the task's start date (~1 year for Daily). | [`src/services/calendar.js`](src/services/calendar.js) `occurrences()` |
-| 2 | **No auto‑recurrence** — every frequency is one completable row; it never re‑opens for the next period. | by design |
+| 2 | **No auto‑recurrence in the base app** — every frequency is one completable row; it never re‑opens for the next period. Optional fix: add [`Recurring.gs`](setup/google-apps-script/Recurring.gs) (nightly roll‑forward + Missed logging). | by design |
 | 3 | **A completed recurring row shows all its future Calendar chips as "Done"** — they read the one row's status. | Calendar rendering |
 | 4 | **Monthly+ occurrences can drift** a day or two, because a Sunday/holiday push feeds the next `+N months` step. | `occurrences()` |
 | 5 | **`master` is read by column position on the frontend** — insert/reorder a column and every login fails. (Backend uses header names.) | [`src/services/auth.js`](src/services/auth.js) `loadUsers()` |
