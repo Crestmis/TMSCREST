@@ -156,6 +156,9 @@ export async function planAdd(scope,fields){return postAppsScript({action:'planA
 export async function planUpdate(scope,fields){return postAppsScript({action:'planUpdate',scope,...fields})}
 export async function planDelete(scope,{planId}){return postAppsScript({action:'planDelete',scope,planId})}
 export async function generatePlannedMonth(target='current'){return postAppsScript({action:'planGenerate',target})}
+// Archive completed instances (dated before today) out of Checklist / DELEGATION
+// into TASK HISTORY, and drop past-due generated Pending rows as "Missed".
+export async function planSweep(){return postAppsScript({action:'planSweep'})}
 
 export async function createTask({taskType='delegation',taskTitle,department,givenBy,assignee,plannedDate,plannedTime='',frequency='One-Time',reminders=false,requireAttachment=false,remarks='' }){
   const safeDate=nextNonSunday(plannedDate)

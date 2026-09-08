@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   CalendarClock, RefreshCw, Plus, Pencil, Trash2, Search, Users, Save,
-  CheckCircle2, Lock, PlayCircle
+  CheckCircle2, Lock, PlayCircle, Archive
 } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import { loadUsers } from '../services/auth'
-import { fetchPlans, planAdd, planUpdate, planDelete, generatePlannedMonth } from '../services/tasks'
+import { fetchPlans, planAdd, planUpdate, planDelete, generatePlannedMonth, planSweep } from '../services/tasks'
 import { normalize } from '../services/sheets'
 
 const FREQS = ['Daily', 'Fortnightly', 'Weekly', 'Monthly', 'Quarterly', 'Half-Yearly', 'Yearly', 'One-Time']
@@ -134,6 +134,18 @@ export default function PlannedTasks({ session }) {
     } finally { setBusy(false) }
   }
 
+  const sweep = async () => {
+    setBusy(true); setError(''); setOk('')
+    try {
+      const res = await planSweep()
+      const a = res?.archived ?? 0, m = res?.missedLogged ?? 0
+      setOk(`Maintenance: ${a} completed task(s) archived to History${m ? `, ${m} past-due marked Missed` : ''}.`)
+      await load()
+    } catch (err) {
+      setError(err.message || 'Unable to run maintenance.')
+    } finally { setBusy(false) }
+  }
+
   const into = SCOPES.find(s => s.key === scope)?.into
 
   return (
@@ -148,6 +160,7 @@ export default function PlannedTasks({ session }) {
               <>
                 <button className="secondary-btn" disabled={busy} onClick={() => generate('current')}><PlayCircle size={15} /> Generate this month</button>
                 <button className="secondary-btn" disabled={busy} onClick={() => generate('next')}><PlayCircle size={15} /> Next month</button>
+                <button className="secondary-btn" disabled={busy} onClick={sweep} title="Archive completed tasks (dated before today) to History"><Archive size={15} /> Run maintenance</button>
                 <button className="primary-btn" onClick={openAdd}><Plus size={15} /> Add Plan</button>
               </>
             )}

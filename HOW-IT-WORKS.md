@@ -53,11 +53,13 @@ To make recurring work actually recur, add **one** optional Apps Script file
 
 | File | Model | When |
 |---|---|---|
-| [`PlannedMonthly.gs`](setup/google-apps-script/PlannedMonthly.gs) | `Task_Planned_CL` / `Task_Planned_DL` hold the recurring rules; a trigger on the **1st of each month at ~00:00** builds the whole month's instances into `Checklist` / `DELEGATION` as `Status = Pending`, `Freq = One-Time`. Purely additive — never touches an existing row. The Calendar needs no change (One-Time rows aren't re-expanded). | recommended — clean separation of rules vs. live tasks; pending tasks untouched |
-| [`Recurring.gs`](setup/google-apps-script/Recurring.gs) | keeps one row per recurring task in `Checklist`; a nightly trigger rolls it forward to the current cycle and logs a `Missed` row for any skipped cycle. | smaller, no plan sheets; the row is reused rather than one-per-occurrence |
+| [`PlannedMonthly.gs`](setup/google-apps-script/PlannedMonthly.gs) | `Task_Planned_CL` / `Task_Planned_DL` hold the rules (edited via **Assign Task** or the **Planned Tasks** page). **Monthly** trigger (1st, ~00:00) builds each month's instances into `Checklist` / `DELEGATION` as `Status = Pending`, `Freq = One-Time`, id `PlanID#date`. **Daily** trigger (~01:00) archives completions dated before today into `TASK HISTORY` and removes them, sweeps past‑due Pending as `Missed`, deactivates a done One‑Time plan. Each day is its own row, so completing one never touches another; the Calendar needs no change. | recommended |
+| [`Recurring.gs`](setup/google-apps-script/Recurring.gs) | keeps one row per recurring task in `Checklist`; a nightly trigger rolls it forward to the current cycle and logs a `Missed` row for any skipped cycle. | smaller, no plan sheets; the row is reused rather than one‑per‑occurrence |
 
-Setup for each is in that file's header comment. Without either, the base app
-never auto‑recurs — one row = one task.
+With `PlannedMonthly.gs` installed, **Assign Task writes a plan row** (not a
+direct `Checklist`/`DELEGATION` row) and generates this + next month
+immediately. Setup is in each file's header comment. Without either, the base
+app never auto‑recurs — one row = one task.
 
 ---
 

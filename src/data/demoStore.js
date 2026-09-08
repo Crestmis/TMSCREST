@@ -322,3 +322,58 @@ export function generatePlannedMonthDemo({target='current'}={}){
  })
  saveStore(store);return {success:true,demo:true,created,skipped,plans,month:demoKey_(monthStart).slice(0,7)}
 }
+
+// Nightly maintenance: move completions dated before today out of Checklist /
+// DELEGATION into TASK HISTORY (they stay visible on Current for their own day);
+// drop past-due generated Pending rows (id contains '#') as "Missed" after a
+// 2-day grace; deactivate a One-Time plan once its instance is done.
+export function archiveCompletedDemo(){
+ const store=getStore()
+ const now=new Date()
+ const todayKey=demoKey_(new Date(now.getFullYear(),now.getMonth(),now.getDate()))
+ store['TASK HISTORY']=store['TASK HISTORY']||[]
+ const seen=new Set()
+ ;(store['TASK HISTORY']||[]).forEach(r=>{const tid=String(r['Task ID']||'').trim();if(tid.slice(-9)===' (missed)')seen.add(tid.slice(0,-9).trim()+'|missed');else seen.add(tid)})
+ let archived=0,missedLogged=0,plansDeactivated=0
+ const planOf=id=>{
+  const pid=id.indexOf('#')>0?id.slice(0,id.indexOf('#')):''
+  if(!pid)return null
+  for(const s of ['Task_Planned_CL','Task_Planned_DL']){
+   const p=(store[s]||[]).find(r=>String(r['Plan ID']||'').trim()===pid)
+   if(p)return {row:p,freq:demoFreq_(p['Freq'])}
+  }
+  return null
+ }
+ ;['Checklist','DELEGATION'].forEach(sheet=>{
+  const rows=store[sheet]||[]
+  const type=sheet==='Checklist'?'Checklist':'Delegation'
+  for(let i=rows.length-1;i>=0;i--){
+   const r=rows[i]
+   const st=String(r['Status']||'').trim().toLowerCase()
+   const id=String(r['Task ID']||'').trim()
+   const plannedDate=demoParse_(r['Task Start Date'])
+   const plannedKey=plannedDate?demoKey_(plannedDate):''
+   if(st==='done'||st==='delay'){
+    const actDate=demoParse_(r['Actual Date'])
+    const actKey=actDate?demoKey_(actDate):''
+    if(!actKey||actKey>=todayKey)continue
+    if(!seen.has(id)){
+     store['TASK HISTORY'].push({'Task ID':id,'Task Description':r['Task Description']||'','Task Type':type,'Doer':r['Name']||'','Given By':r['Given By']||'','Department':r['Department']||'','Planned Date':r['Task Start Date']||'','Planned Time':r['Task Start Time']||'','Actual Date':actKey,'Actual Time':r['Actual Time']||'','Status':st==='delay'?'Delay':'Done','Completion Type':r['Completion Type']||'','Remarks':r['Remarks']||'','Submitted Date':new Date().toISOString()})
+     seen.add(id)
+    }
+    rows.splice(i,1);archived++
+    const pf=planOf(id)
+    if(pf&&pf.freq==='one-time'&&String(pf.row['Active']||'').toLowerCase()!=='no'){pf.row['Active']='No';plansDeactivated++}
+   }else if(id.indexOf('#')>0&&plannedKey&&plannedKey<todayKey){
+    const days=Math.round((demoParse_(todayKey)-demoParse_(plannedKey))/86400000)
+    if(days<2)continue
+    if(!seen.has(id+'|missed|'+plannedKey)){
+     store['TASK HISTORY'].push({'Task ID':id+' (missed)','Task Description':r['Task Description']||'','Task Type':type,'Doer':r['Name']||'','Given By':r['Given By']||'','Department':r['Department']||'','Planned Date':plannedKey,'Planned Time':r['Task Start Time']||'','Actual Date':'','Actual Time':'','Status':'Missed','Completion Type':'MISSED','Remarks':'Auto: not completed','Submitted Date':new Date().toISOString()})
+     seen.add(id+'|missed|'+plannedKey)
+    }
+    rows.splice(i,1);missedLogged++
+   }
+  }
+ })
+ saveStore(store);return {success:true,demo:true,archived,missedLogged,plansDeactivated}
+}

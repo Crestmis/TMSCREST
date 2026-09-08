@@ -4,8 +4,22 @@ This is the single, current runbook. It covers a fresh install and updating an
 existing deployment, including the **Planned Tasks / monthly generator** feature.
 Supersedes `GO-LIVE.md` for this build.
 
-Repo: `https://github.com/Crestmis/TMSCREST` · branch `main` · latest verified
-commit `a046661`.
+Repo: `https://github.com/Crestmis/TMSCREST` · branch `main`.
+
+**The task model in this build:** you only ever edit **`Task_Planned_CL` /
+`Task_Planned_DL`** (via **Assign Task** or the **Planned Tasks** page).
+Everything else is machine‑managed:
+
+| Sheet | Role | Written by |
+|---|---|---|
+| `Task_Planned_CL` / `_DL` | task definitions — name, doer, start date, freq, active | **you** |
+| `Checklist` / `DELEGATION` | per‑occurrence rows (`PlanID#date`, Pending→Done) | the generator, then completion |
+| `TASK HISTORY` / `DELEGATION DONE` | archive of completed / missed occurrences | completion + daily maintenance |
+
+Two triggers: **monthly generator** (1st, ~00:00) builds each month's occurrences;
+**daily maintenance** (~01:00) moves completions dated before today into
+`TASK HISTORY` (so `Checklist`/`DELEGATION` hold only open work), marks past‑due
+generated rows `Missed`, and deactivates a One‑Time plan once its instance is done.
 
 ---
 
@@ -24,14 +38,15 @@ two non-admin users):
 | Holidays (add / delete) | OK |
 | Reports & Score, Live Score | OK |
 | All TasksList (add / edit / delete) | OK |
-| **Planned Tasks** (new) | OK — plan CRUD, "Generate this month / next month", idempotent re-runs, Editor-gated |
+| **Planned Tasks** (new) | OK — plan CRUD, "Generate this month / next month", **"Run maintenance"**, idempotent re-runs, Editor-gated |
+| **Assign Task** | OK — now writes a **plan** (`Task_Planned_CL`/`_DL`), not a direct row; Checklist = recurring, Delegation = one-time; auto-generates this + next month; access-gated |
+| **Completing occurrence N never touches N±1** | OK — verified; each day is its own `PlanID#date` row |
+| **Daily maintenance / archive** | OK — completions dated before today move to `TASK HISTORY`, removed from `Checklist`/`DELEGATION`; today's kept; past-due Pending → `Missed` after 2-day grace; One-Time plan → `Active=No` on completion; de-duplicated |
 | History, Help & Support, Settings (persist) | OK |
 | Admin Access | OK — matrix **save now works in demo mode** (was a no-op — fixed), Add / Edit / Delete user |
-| Assign Task | OK — Sunday → Monday shift, access-gated |
-| Per-user task visibility (`Own Tasks` / `All Tasks`) | OK |
-| Calendar Past / Future per-user locks | OK |
+| Per-user task visibility (`Own Tasks` / `All Tasks`), Calendar Past/Future locks | OK |
 
-Apps Script files: **`Code.gs`** (backend + new `planAdd/planUpdate/planDelete/planGenerate` actions) and **`PlannedMonthly.gs`** (monthly generator + plan CRUD handlers). `Recurring.gs` is an alternative recurrence model — install **one** of the two, not both.
+Apps Script files: **`Code.gs`** (backend + `planAdd/planUpdate/planDelete/planGenerate/planSweep`) and **`PlannedMonthly.gs`** (monthly generator + daily maintenance + plan CRUD). `Recurring.gs` is a simpler alternative recurrence model — install **one** approach, not both.
 
 ---
 
@@ -75,8 +90,10 @@ Apps Script files: **`Code.gs`** (backend + new `planAdd/planUpdate/planDelete/p
 
 1. `setupSheets` — creates the core tabs + a default admin login.
 2. `setupPlannedSheets` — creates `Task_Planned_CL` and `Task_Planned_DL`.
-3. `installMonthlyGenerator` — installs the trigger: **1st of each month, ~00:00**
-   (script time zone).
+3. `installMonthlyGenerator` — installs **two** triggers: the monthly generator
+   (**1st, ~00:00**) and daily maintenance (**~01:00**), script time zone.
+   Check them under Apps Script → ⏰ **Triggers** (two rows:
+   `runMonthlyGeneratorNow`, `runDailyMaintenanceNow`).
 
 ### 2.5 Time zone
 
@@ -151,6 +168,9 @@ didn't take — recheck 3.1 and redeploy.
 - Values must equal the person's **login username** — `rahul`, not `Rahul Kumar`.
 - Full 17-column header row incl. `Actual Date`, `Actual Time`,
   `Completion Type`, `Responsibility Confirmed`, `Confirmed At`.
+- **You no longer type in these sheets.** The generator fills them; the doer
+  column matters only for the plan sheet's `Name`. Every row's `Task ID` is
+  `PlanID#date` — unique, so completing one day never affects another.
 
 ---
 
@@ -165,34 +185,49 @@ didn't take — recheck 3.1 and redeploy.
   (the 1st of a month is fine). `Freq` — `Daily | Fortnightly | Weekly | Monthly
   | Quarterly | Half-Yearly | Yearly | One-Time`. `Active` — `Yes` / `No`.
 
-### 5.2 Migrate your existing recurring tasks
+### 5.2 Creating tasks
 
-For each recurring row in `Checklist` / `DELEGATION`:
+- **Assign Task** page (or **Planned Tasks → Add Plan**): every entry is written
+  to `Task_Planned_CL` (Checklist / recurring) or `Task_Planned_DL`
+  (Delegation / one-time). Assign Task also generates this + next month straight
+  away, so the task shows without waiting for the 1st.
+- Never add a `Daily`/`Weekly`/… row straight into `Checklist`/`DELEGATION` — add
+  a plan instead.
 
-1. Add a matching **plan** (app → **Planned Tasks → Add Plan**, or type a row in
-   the plan sheet).
-2. On the **old** working-sheet row, change its **`Freq` to `One-Time`** — leave
-   everything else on the row alone (so the Calendar draws it once). The doer
-   finishes it normally; from next month the generator produces the plan's
-   instances.
-3. Genuinely one-off tasks: don't touch them.
+### 5.3 Migrate existing recurring rows
 
-### 5.3 How generation works
+For each recurring row currently in `Checklist` / `DELEGATION`:
 
-- On the **1st of each month at ~00:00** the trigger builds **every occurrence
-  of every active plan for that whole month** into `Checklist` / `DELEGATION` as
+1. Add a matching **plan** (Assign Task or Planned Tasks → Add Plan).
+2. **Delete the old recurring row** from `Checklist` / `DELEGATION`. If a couple
+   are still pending and must be finished by hand, keep just those and set their
+   `Freq` cell to `One-Time`; the daily maintenance sweep clears them once done
+   or > 2 days overdue.
+
+### 5.4 How it runs
+
+- **Monthly generator** (1st, ~00:00): for every active plan, builds every
+  occurrence of that whole month into `Checklist` / `DELEGATION` —
   `Status = Pending`, `Freq = One-Time`, Task ID `PlanID#yyyy-mm-dd`.
-- **Purely additive** — never edits/deletes/reorders an existing row; pending
-  tasks untouched.
-- **Idempotent** — an instance already present is skipped, so re-running is safe.
-- Sundays and `HOLIDAYS` dates are skipped (pushed to the next working day).
-- **Calendar is not affected** — `One-Time` rows are not re-expanded.
-- Completion is unchanged: `Done` → `TASK HISTORY` (+ `DELEGATION DONE`).
+  Additive, idempotent, skips Sundays + `HOLIDAYS`. **Calendar not affected** —
+  `One-Time` rows aren't re-expanded.
+- **Daily maintenance** (~01:00): completions dated **before today** move to
+  `TASK HISTORY` (+ `DELEGATION DONE`) and are **removed** from
+  `Checklist` / `DELEGATION` — today's completions stay visible on the Current
+  tab until midnight. Generated Pending rows > 2 days past due are logged
+  `Missed` and removed. A One-Time plan is set `Active = No` once its instance
+  completes.
+- On demand: **Planned Tasks → Generate this month / Next month / Run maintenance**.
 
-### 5.4 Seed the first month
+### 5.5 Seed the first month
 
 App → **Planned Tasks → Generate this month** (and optionally **Next month**).
-After that it's automatic on the 1st.
+Then it's automatic.
+
+> **Note:** because completed rows are archived out, **Reports & Score** and
+> **Live Score** reflect the current operational window (open work + recent
+> completions). The full record is on the **History** page / `TASK HISTORY`
+> sheet.
 
 ---
 
@@ -211,17 +246,20 @@ After that it's automatic on the 1st.
 - [ ] Next day (or set a test row's `Actual Date` to yesterday) → leaves Current, appears on History
 - [ ] A future-dated task is not in Current and the completion popup blocks it ("Not due until …")
 
-**Planned Tasks**
-- [ ] Add / edit / delete a plan
-- [ ] **Generate this month** → rows appear (`PlanID#date`, `Freq = One-Time`, `Pending`)
+**Planned Tasks / generator**
+- [ ] **Assign Task** → recurring checklist task → a row appears in `Task_Planned_CL` (not a direct `Checklist` row); occurrences generate
+- [ ] Assign Task → one-time delegation → a row in `Task_Planned_DL` (End Date = start date); exactly **one** `DELEGATION` instance
+- [ ] Planned Tasks: Add / edit / delete a plan
 - [ ] **Generate this month** again → "0 generated, N already existed"
-- [ ] Calendar: one chip per instance on its date; Sundays/holidays skipped
-- [ ] As a `Viewer` user: page is read-only, no Add/Generate buttons
+- [ ] Complete occurrence `PlanID#day-8` → `PlanID#day-9` stays Pending (completing one never touches another)
+- [ ] Calendar: one chip per instance; complete one day → only that chip goes Done
+- [ ] **Run maintenance**: a completion dated **before today** leaves `Checklist`/`DELEGATION` and is on the **History** page; a completion dated **today** stays on Current; no duplicate `TASK HISTORY` row
+- [ ] As a `Viewer` user: page is read-only, no Add/Generate/Run buttons
 
-**Admin & Assign**
+**Admin**
 - [ ] Admin Access → change a permission → **Save Access** → row updates in `ACCESS CONTROL`; the user sees it after a reload
 - [ ] Add / rename / delete a user works; `admin` is protected
-- [ ] Assign Task on a Sunday → date moves to Monday; a `Viewer` on "Assign Task" can't submit
+- [ ] A `Viewer` on "Assign Task" can't submit
 
 **Other pages**
 - [ ] Holidays add/remove; Reports & Live Score numbers; History filters; Help & Support submit; Settings save + reload persists
@@ -235,7 +273,7 @@ After that it's automatic on the 1st.
 | Apps Script | Deploy → Manage deployments → ✏️ Edit → Version → previous number → Deploy |
 | Vercel | Deployments → previous Production → ⋯ → Promote to Production |
 | Google Sheet | Restore the "CREST backup" copy, or File → Version history |
-| Stop generation | run `uninstallMonthlyGenerator`; rows already generated remain as normal One-Time tasks |
+| Stop generation + maintenance | run `uninstallMonthlyGenerator` (removes both triggers); rows already generated remain as normal One-Time tasks |
 
 Layers are independent — old frontend works with new `Code.gs` and vice versa.
 

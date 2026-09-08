@@ -1,5 +1,5 @@
 import { CONFIG } from '../config'
-import { getDemoSheet, insertDemoTask, completeDemoTask, demoAccessRows, saveDemoAccess, submitDemoSupport, createDemoUser, updateDemoUser, deleteDemoUser, updateDemoTask, deleteDemoTask, saveDemoHoliday, deleteDemoHoliday, allListAddDemo, allListUpdateDemo, allListDeleteDemo, planAddDemo, planUpdateDemo, planDeleteDemo, generatePlannedMonthDemo } from '../data/demoStore'
+import { getDemoSheet, insertDemoTask, completeDemoTask, demoAccessRows, saveDemoAccess, submitDemoSupport, createDemoUser, updateDemoUser, deleteDemoUser, updateDemoTask, deleteDemoTask, saveDemoHoliday, deleteDemoHoliday, allListAddDemo, allListUpdateDemo, allListDeleteDemo, planAddDemo, planUpdateDemo, planDeleteDemo, generatePlannedMonthDemo, archiveCompletedDemo } from '../data/demoStore'
 function demoRowsToResult(rows){if(!rows.length)return {headers:[],values:[],raw:null};const headers=[...new Set(rows.flatMap(r=>Object.keys(r)))];return {headers,values:rows.map(r=>headers.map(h=>r[h]??'')),raw:null}}
 export async function readSheet(sheetName){
  if(CONFIG.DEMO_MODE)return demoRowsToResult(getDemoSheet(sheetName))
@@ -29,6 +29,7 @@ export async function postAppsScript(fields){
    if(fields.action==='planUpdate'){return planUpdateDemo(fields)}
    if(fields.action==='planDelete'){return planDeleteDemo(fields)}
    if(fields.action==='planGenerate'){return generatePlannedMonthDemo(fields)}
+   if(fields.action==='planSweep'){return archiveCompletedDemo()}
    if(fields.action==='complete'){return completeDemoTask(fields.task,{status:fields.status,remarks:fields.remarks,nextTargetDate:fields.nextTargetDate,attachmentUrl:fields.attachmentUrl,actualDate:fields.actualDate,actualTime:fields.actualTime,completionType:fields.completionType,responsibilityConfirmed:fields.responsibilityConfirmed})}
    return {success:true,demo:true}
  }
