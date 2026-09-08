@@ -123,6 +123,40 @@ export async function deleteTask({taskId,taskType='checklist'}){
   return postAppsScript({action:'deleteTask',taskId,taskType,sheetName:String(taskType).toLowerCase()==='checklist'?CONFIG.SHEETS.CHECKLIST:CONFIG.SHEETS.DELEGATION})
 }
 
+// ---- Recurring plans (Task_Planned_CL / Task_Planned_DL) --------------------
+// One row per recurring rule. The monthly Apps Script trigger (PlannedMonthly.gs)
+// materialises each active plan's occurrences into Checklist / DELEGATION as
+// One-Time Pending rows on the 1st of the month. This page manages the rules.
+export function mapPlan(r,scope){
+  return {
+    row:r._row,
+    planId:String(pick(r,['Plan ID','PlanId','PlanID','ID'],'')),
+    scope, // 'CL' | 'DL'
+    title:String(pick(r,['Task Description','Task','Description'],'')),
+    department:String(pick(r,['Department','Firm'],'')),
+    givenBy:String(pick(r,['Given By','GivenBy'],'')),
+    assignee:String(pick(r,['Name','Doer','Assigned To'],'')),
+    startDate:isoDate(pick(r,['Start Date','Task Start Date','Planned Date','Date'],'')),
+    time:String(pick(r,['Time','Task Start Time','Planned Time','Set Time'],'')||''),
+    frequency:String(pick(r,['Freq','Frequency'],'Daily'))||'Daily',
+    endDate:isoDate(pick(r,['End Date','Until'],'')),
+    requireAttachment:normalize(pick(r,['Require Attachment'],''))==='yes',
+    reminders:normalize(pick(r,['Enable Reminders','Reminders'],''))==='yes',
+    remarks:String(pick(r,['Remarks'],'')||''),
+    active:!['no','n','false','0','inactive','off'].includes(normalize(pick(r,['Active','Enabled'],'yes'))),
+    raw:r
+  }
+}
+export async function fetchPlans(scope){
+  const sheet=String(scope||'').toUpperCase()==='DL'?CONFIG.SHEETS.PLANNED_DL:CONFIG.SHEETS.PLANNED_CL
+  const rows=await readRows(sheet).catch(()=>[])
+  return rows.filter(r=>Object.values(r).some(v=>String(v).trim())).map(r=>mapPlan(r,String(scope||'CL').toUpperCase()))
+}
+export async function planAdd(scope,fields){return postAppsScript({action:'planAdd',scope,...fields})}
+export async function planUpdate(scope,fields){return postAppsScript({action:'planUpdate',scope,...fields})}
+export async function planDelete(scope,{planId}){return postAppsScript({action:'planDelete',scope,planId})}
+export async function generatePlannedMonth(target='current'){return postAppsScript({action:'planGenerate',target})}
+
 export async function createTask({taskType='delegation',taskTitle,department,givenBy,assignee,plannedDate,plannedTime='',frequency='One-Time',reminders=false,requireAttachment=false,remarks='' }){
   const safeDate=nextNonSunday(plannedDate)
   return postAppsScript({action:'insert',taskType,taskTitle,department,givenBy,assignee,plannedDate:safeDate,plannedTime,frequency,reminders,requireAttachment,remarks,sheetName:taskType==='checklist'?CONFIG.SHEETS.CHECKLIST:CONFIG.SHEETS.DELEGATION})

@@ -16,5 +16,7 @@ export const CONFIG = {
     WORKING_DAYS: 'Working Day Calendar',
     HOLIDAYS: 'HOLIDAYS',
     ALL_TASKS: 'AllTasksList',
+    PLANNED_CL: 'Task_Planned_CL',
+    PLANNED_DL: 'Task_Planned_DL',
   },
 }

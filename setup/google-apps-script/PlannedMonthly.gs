@@ -258,9 +258,108 @@ function _pmOccurrencesInMonth_(plan, monthStart, monthEnd, holidays, tz) {
 
 function _pmAssertDeps_() {
   if (typeof getHeaders_ !== 'function' || typeof findHeader_ !== 'function' ||
-      typeof appendMapped_ !== 'function' || typeof getOrCreateSheet_ !== 'function') {
+      typeof appendMapped_ !== 'function' || typeof getOrCreateSheet_ !== 'function' ||
+      typeof setByHeader_ !== 'function') {
     throw new Error('PlannedMonthly.gs needs Code.gs in the same Apps Script project (it reuses its helpers).');
   }
+}
+
+/* ===== plan CRUD — called from Code.gs doPost (planAdd / planUpdate /
+ *       planDelete / planGenerate) ====================================== */
+
+function _pmPlanSheetName_(scope) {
+  return String(scope || '').toUpperCase() === 'DL' ? 'Task_Planned_DL' : 'Task_Planned_CL';
+}
+
+function _pmNextPlanId_(sheet, scope) {
+  var prefix = String(scope || '').toUpperCase() === 'DL' ? 'PDL-' : 'PCL-';
+  var h = getHeaders_(sheet), idCol = findHeader_(h, ['plan id', 'planid', 'id']);
+  var max = 0;
+  if (idCol >= 0 && sheet.getLastRow() > 1) {
+    sheet.getRange(2, idCol + 1, sheet.getLastRow() - 1, 1).getDisplayValues().forEach(function (r) {
+      var m = String(r[0]).match(/^P(?:CL|DL)-(\d+)$/i);
+      if (m) max = Math.max(max, Number(m[1]));
+    });
+  }
+  return prefix + (max + 1);
+}
+
+function _pmYesNo_(v) {
+  return (v === true || ['yes', 'true', '1', 'y'].indexOf(String(v).trim().toLowerCase()) !== -1) ? 'Yes' : 'No';
+}
+function _pmActiveVal_(v) {
+  if (v === undefined || v === null || v === '') return 'Yes';
+  return (v === false || ['no', 'n', 'false', '0', 'inactive', 'off'].indexOf(String(v).trim().toLowerCase()) !== -1) ? 'No' : 'Yes';
+}
+
+function planAdd_(p) {
+  _pmAssertDeps_();
+  var s = getOrCreateSheet_(_pmPlanSheetName_(p.scope), PLANNED_HEADERS);
+  var h = getHeaders_(s);
+  var id = String(p.planId || '').trim() || _pmNextPlanId_(s, p.scope);
+  appendMapped_(s, h, {
+    'plan id': id,
+    'task description': p.taskDescription || p.title || '',
+    'department': p.department || '',
+    'given by': p.givenBy || '',
+    'name': p.name || p.assignee || '',
+    'start date': p.startDate || '',
+    'time': p.time || '',
+    'freq': p.frequency || p.freq || 'Daily',
+    'end date': p.endDate || '',
+    'require attachment': _pmYesNo_(p.requireAttachment),
+    'enable reminders': _pmYesNo_(p.reminders),
+    'remarks': p.remarks || '',
+    'active': _pmActiveVal_(p.active)
+  });
+  return { success: true, planId: id };
+}
+
+function planUpdate_(p) {
+  _pmAssertDeps_();
+  var s = getOrCreateSheet_(_pmPlanSheetName_(p.scope), PLANNED_HEADERS);
+  var h = getHeaders_(s), idCol = findHeader_(h, ['plan id', 'planid', 'id']);
+  if (idCol < 0) throw new Error('Plan ID column not found.');
+  var vals = s.getDataRange().getDisplayValues(), rowIndex = -1;
+  for (var r = 1; r < vals.length; r++) {
+    if (String(vals[r][idCol]).trim() === String(p.planId).trim()) { rowIndex = r + 1; break; }
+  }
+  if (rowIndex < 0) throw new Error('Plan ' + p.planId + ' not found.');
+  var set = function (aliases, v) { if (v !== undefined) setByHeader_(s, h, rowIndex, aliases, v); };
+  set(['task description', 'task', 'description'], p.taskDescription !== undefined ? p.taskDescription : p.title);
+  set(['department', 'firm'], p.department);
+  set(['given by'], p.givenBy);
+  set(['name', 'doer', 'assigned to'], p.name !== undefined ? p.name : p.assignee);
+  set(['start date', 'task start date', 'planned date', 'date'], p.startDate);
+  set(['time', 'task start time', 'planned time', 'set time'], p.time);
+  set(['freq', 'frequency'], p.frequency !== undefined ? p.frequency : p.freq);
+  set(['end date', 'until'], p.endDate);
+  if (p.requireAttachment !== undefined) set(['require attachment'], _pmYesNo_(p.requireAttachment));
+  if (p.reminders !== undefined) set(['enable reminders', 'reminders'], _pmYesNo_(p.reminders));
+  set(['remarks'], p.remarks);
+  if (p.active !== undefined) set(['active', 'enabled'], _pmActiveVal_(p.active));
+  return { success: true, planId: p.planId };
+}
+
+function planDelete_(p) {
+  _pmAssertDeps_();
+  var s = getOrCreateSheet_(_pmPlanSheetName_(p.scope), PLANNED_HEADERS);
+  var h = getHeaders_(s), idCol = findHeader_(h, ['plan id', 'planid', 'id']);
+  if (idCol < 0) throw new Error('Plan ID column not found.');
+  var vals = s.getDataRange().getDisplayValues();
+  for (var r = vals.length - 1; r >= 1; r--) {
+    if (String(vals[r][idCol]).trim() === String(p.planId).trim()) { s.deleteRow(r + 1); return { success: true }; }
+  }
+  throw new Error('Plan ' + p.planId + ' not found.');
+}
+
+function planGenerate_(p) {
+  _pmAssertDeps_();
+  var d = new Date();
+  var anchor = String(p && p.target || 'current') === 'next'
+    ? new Date(d.getFullYear(), d.getMonth() + 1, 1)
+    : new Date();
+  return _pmGenerateForMonth_(anchor);
 }
 
 function _pmFreq_(raw) {

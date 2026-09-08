@@ -1,4 +1,4 @@
-import {LayoutDashboard,ListTodo,Users,CalendarDays,BarChart3,Settings,X,Plus,ShieldCheck,History,LifeBuoy,TrendingUp,ListChecks,PartyPopper,LogOut,User} from 'lucide-react'
+import {LayoutDashboard,ListTodo,Users,CalendarDays,BarChart3,Settings,X,Plus,ShieldCheck,History,LifeBuoy,TrendingUp,ListChecks,PartyPopper,LogOut,User,CalendarClock} from 'lucide-react'
 const items=[
   ['dashboard','Dashboard',LayoutDashboard],
   ['tasks','Checklist',ListTodo],
@@ -8,6 +8,7 @@ const items=[
   ['reports','Reports & Score',BarChart3],
   ['livescore','Live Score',TrendingUp],
   ['all-tasklist','All TasksList',ListChecks],
+  ['planned-tasks','Planned Tasks',CalendarClock],
   ['history','History',History],
   ['help-support','Help & Support',LifeBuoy],
   ['settings','Settings',Settings],

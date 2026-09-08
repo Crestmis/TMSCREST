@@ -12,6 +12,7 @@ import {Settings} from './pages/SimplePages'
 import Login from './pages/Login'
 import AdminAccess from './pages/AdminAccess'
 import AllTaskList from './pages/AllTaskList'
+import PlannedTasks from './pages/PlannedTasks'
 import History from './pages/History'
 import HelpSupport from './pages/HelpSupport'
 import LiveScore from './pages/LiveScore'
@@ -41,6 +42,7 @@ export default function App(){
   settings:'Settings',
   'admin-access':'Admin Access',
   'all-tasklist':'All TasksList',
+  'planned-tasks':'Planned Tasks',
   history:'History',
   'help-support':'Help & Support',
   livescore:'Live Score'
@@ -61,6 +63,7 @@ export default function App(){
   case 'settings': content=<Settings {...props}/>;break
   case 'admin-access': content=<AdminAccess {...props} onSessionChanged={setSession}/>;break
   case 'all-tasklist': content=<AllTaskList {...props}/>;break
+  case 'planned-tasks': content=<PlannedTasks {...props}/>;break
   case 'history': content=<History {...props}/>;break
   case 'help-support': content=<HelpSupport {...props}/>;break
   case 'livescore': content=<LiveScore {...props}/>;break
