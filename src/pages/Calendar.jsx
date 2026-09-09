@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+
 import {
   ChevronLeft,
   ChevronRight,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react'
 
 import PageHeader from '../components/PageHeader'
+
 import {
   fetchChecklist,
   fetchDelegation,
@@ -33,6 +35,10 @@ import {
   holidayMap
 } from '../services/calendar'
 
+
+/* =========================================================
+   STORAGE
+   ========================================================= */
 
 const VIEW_KEY = 'crest_calendar_view_v1'
 
@@ -63,9 +69,10 @@ function writeView(v) {
 }
 
 
-/*
- * Calendar session cache.
- */
+/* =========================================================
+   CALENDAR SESSION CACHE
+   ========================================================= */
+
 const CACHE_KEY = 'crest_calendar_cache_v1'
 
 function readCache(user) {
@@ -97,12 +104,9 @@ function writeCache(user, tasks, holidays) {
 }
 
 
-/*
- * ---------------------------------------------------------
- * DATE / INSTANCE HELPERS
- * ---------------------------------------------------------
- */
-
+/* =========================================================
+   DATE HELPERS
+   ========================================================= */
 
 /*
  * Always return YYYY-MM-DD.
@@ -110,18 +114,12 @@ function writeCache(user, tasks, holidays) {
 function dateKey(value) {
   if (!value) return ''
 
-  /*
-   * Already ISO.
-   */
   const s = String(value).trim()
 
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
     return s.slice(0, 10)
   }
 
-  /*
-   * Try application date parser.
-   */
   try {
     const d = new Date(value)
 
@@ -138,9 +136,10 @@ function dateKey(value) {
 }
 
 
-/*
- * Get Plan ID from any supported task/history shape.
- */
+/* =========================================================
+   TASK / PLAN HELPERS
+   ========================================================= */
+
 function getPlanId(item) {
   return String(
     item?.planId ??
@@ -152,9 +151,6 @@ function getPlanId(item) {
 }
 
 
-/*
- * Get Task ID.
- */
 function getTaskId(item) {
   return String(
     item?.id ??
@@ -167,7 +163,7 @@ function getTaskId(item) {
 
 
 /*
- * Get occurrence date from a task/event/history record.
+ * Get occurrence/planned date from any supported shape.
  */
 function getOccurrenceDate(item) {
   return dateKey(
@@ -183,20 +179,14 @@ function getOccurrenceDate(item) {
 
 
 /*
- * CRITICAL:
+ * Recurring instance identity:
  *
- * A recurring occurrence is identified by:
- *
- *     Plan ID | Occurrence Date
+ * Plan ID + Occurrence Date
  *
  * Example:
  *
- *     P1001|2026-09-09
- *     P1001|2026-09-10
- *
- * NOT:
- *
- *     P1001
+ * P1001|2026-09-09
+ * P1001|2026-09-10
  */
 function getInstanceKey(item, date) {
   const planId = getPlanId(item)
@@ -214,8 +204,76 @@ function getInstanceKey(item, date) {
 
 
 /*
- * Frequency helper.
+ * Task type.
+ *
+ * This is intentionally included in the duplicate key
+ * so Checklist and Delegation can have the same task
+ * name/date without one hiding the other.
  */
+function getTaskType(item) {
+  const type = normalize(
+    item?.type ??
+    item?.taskType ??
+    item?.['Task Type'] ??
+    ''
+  )
+
+  if (
+    type === 'delegation' ||
+    type === 'delegate' ||
+    type === 'delegated'
+  ) {
+    return 'delegation'
+  }
+
+  return 'checklist'
+}
+
+
+/*
+ * Strong duplicate identity.
+ *
+ * Same:
+ *
+ *     Task Type
+ *     Plan ID
+ *     Occurrence Date
+ *
+ * = same calendar occurrence.
+ *
+ * This prevents duplicate Daily entries.
+ */
+function getCalendarInstanceKey(item) {
+  const instanceKey = getInstanceKey(
+    item,
+    item?.occurrenceDate ||
+      item?.date
+  )
+
+  const type = getTaskType(item)
+
+  if (instanceKey) {
+    return `${type}|${instanceKey}`
+  }
+
+  /*
+   * Fallback for records without Plan ID.
+   */
+  const taskId = getTaskId(item)
+  const date = getOccurrenceDate(item)
+
+  if (taskId && date) {
+    return `${type}|TASK|${taskId}|${date}`
+  }
+
+  return ''
+}
+
+
+/* =========================================================
+   FREQUENCY
+   ========================================================= */
+
 function taskFrequency(task) {
   return normalize(
     task?.frequency ??
@@ -227,9 +285,6 @@ function taskFrequency(task) {
 }
 
 
-/*
- * Determine whether a task is recurring.
- */
 function isRecurring(task) {
   const f = taskFrequency(task)
 
@@ -246,17 +301,15 @@ function isRecurring(task) {
 }
 
 
-/*
- * Determine whether this is a one-time task.
- */
 function isOneTime(task) {
   return !isRecurring(task)
 }
 
 
-/*
- * Normalize status.
- */
+/* =========================================================
+   STATUS
+   ========================================================= */
+
 function normalizeStatus(status) {
   const s = normalize(status)
 
@@ -286,11 +339,50 @@ function normalizeStatus(status) {
 }
 
 
-/*
- * ---------------------------------------------------------
- * COMPONENT
- * ---------------------------------------------------------
- */
+/* =========================================================
+   REMOVE DUPLICATE CALENDAR OCCURRENCES
+   ========================================================= */
+
+function deduplicateEvents(events = []) {
+  const map = new Map()
+
+  events.forEach(event => {
+
+    const key =
+      getCalendarInstanceKey(event)
+
+    /*
+     * If we cannot construct a safe instance key,
+     * keep the event rather than accidentally deleting it.
+     */
+    if (!key) {
+      const fallback =
+        `${getTaskId(event)}|${
+          getOccurrenceDate(event)
+        }|${Math.random()}`
+
+      map.set(fallback, event)
+      return
+    }
+
+    /*
+     * First occurrence wins.
+     *
+     * This is important when the same Daily instance
+     * was returned more than once by the source.
+     */
+    if (!map.has(key)) {
+      map.set(key, event)
+    }
+  })
+
+  return [...map.values()]
+}
+
+
+/* =========================================================
+   COMPONENT
+   ========================================================= */
 
 export default function Calendar({
   session,
@@ -312,9 +404,10 @@ export default function Calendar({
     )
 
 
-  /*
-   * Cache.
-   */
+  /* =======================================================
+     CACHE
+     ======================================================= */
+
   const cached = readCache(
     session?.username
   )
@@ -324,23 +417,28 @@ export default function Calendar({
     cached?.tasks || []
   )
 
-  const [history, setHistory] = useState([])
+  const [history, setHistory] =
+    useState([])
 
+  /*
+   * Working day calendar is intentionally
+   * left as existing behavior.
+   */
   const [working] = useState([])
 
-  const [holidays, setHolidays] = useState(
-    cached?.holidays || []
-  )
+  const [holidays, setHolidays] =
+    useState(
+      cached?.holidays || []
+    )
 
-  const [month, setMonth] = useState(
-    new Date()
-  )
+  const [month, setMonth] =
+    useState(new Date())
 
-  const [loading, setLoading] = useState(
-    !cached
-  )
+  const [loading, setLoading] =
+    useState(!cached)
 
-  const [error, setError] = useState('')
+  const [error, setError] =
+    useState('')
 
   const [selected, setSelected] =
     useState(null)
@@ -348,18 +446,26 @@ export default function Calendar({
   const [doer, setDoer] =
     useState('all')
 
-  const [view, setView] = useState(() => {
-    const v = readView()
+  const [view, setView] =
+    useState(() => {
 
-    return {
-      past: v.past && canPast,
-      future: v.future && canFuture
-    }
-  })
+      const v = readView()
 
+      return {
+        past: v.past && canPast,
+        future: v.future && canFuture
+      }
+    })
+
+
+  /* =======================================================
+     VIEW SETTINGS
+     ======================================================= */
 
   const setViewFlag = (k, val) => {
+
     setView(v => {
+
       const next = {
         ...v,
         [k]: val
@@ -372,11 +478,9 @@ export default function Calendar({
   }
 
 
-  /*
-   * -------------------------------------------------------
-   * LOAD DATA
-   * -------------------------------------------------------
-   */
+  /* =======================================================
+     LOAD DATA
+     ======================================================= */
 
   const load = async (silent = false) => {
 
@@ -409,10 +513,11 @@ export default function Calendar({
       ])
 
 
-      const all = visibleToUser(
-        [...c, ...d],
-        session
-      )
+      const all =
+        visibleToUser(
+          [...c, ...d],
+          session
+        )
 
 
       setTasks(all)
@@ -444,7 +549,9 @@ export default function Calendar({
   useEffect(() => {
 
     load(
-      !!readCache(session.username)
+      !!readCache(
+        session.username
+      )
     )
 
   }, [
@@ -453,13 +560,12 @@ export default function Calendar({
   ])
 
 
-  /*
-   * -------------------------------------------------------
-   * MONTH RANGE
-   * -------------------------------------------------------
-   */
+  /* =======================================================
+     MONTH RANGE
+     ======================================================= */
 
   const range = useMemo(() => ({
+
     start: new Date(
       month.getFullYear(),
       month.getMonth(),
@@ -471,11 +577,16 @@ export default function Calendar({
       month.getMonth() + 1,
       0
     )
+
   }), [month])
 
 
   const today = localISO()
 
+
+  /* =======================================================
+     HOLIDAY MAP
+     ======================================================= */
 
   const holMap = useMemo(
     () => holidayMap(holidays),
@@ -483,51 +594,82 @@ export default function Calendar({
   )
 
 
-  /*
-   * -------------------------------------------------------
-   * GENERATE OCCURRENCES
-   * -------------------------------------------------------
-   *
-   * Every occurrence now has:
-   *
-   *     occurrenceDate
-   *     instanceKey
-   *
-   * Example:
-   *
-   *     P1001|2026-09-09
-   *     P1001|2026-09-10
-   *     P1001|2026-09-11
-   */
+  /* =======================================================
+     GENERATE OCCURRENCES
+     ======================================================= */
 
   const allEvents = useMemo(() => {
 
-    const generated = occurrences(
-      tasks,
-      range.start,
-      range.end,
-      working,
-      holidays
-    )
+    const generated =
+      occurrences(
+        tasks,
+        range.start,
+        range.end,
+        working,
+        holidays
+      )
 
-    return generated.map(event => {
 
-      const occurrenceDate =
-        dateKey(event.occurrenceDate) ||
-        dateKey(event.date)
+    /*
+     * Add exact occurrence information.
+     */
+    const normalized =
+      generated.map(event => {
 
-      return {
-        ...event,
+        const occurrenceDate =
+          dateKey(
+            event.occurrenceDate
+          ) ||
+          dateKey(event.date)
 
-        occurrenceDate,
 
-        instanceKey:
+        const instanceKey =
           getInstanceKey(
             event,
             occurrenceDate
           )
-      }
-    })
+
+
+        return {
+          ...event,
+
+          occurrenceDate,
+
+          instanceKey,
+
+          /*
+           * Make sure type is always available
+           * for CSS:
+           *
+           * checklist
+           * delegation
+           */
+          type:
+            event.type ||
+            (
+              getTaskType(event) ===
+              'delegation'
+                ? 'Delegation'
+                : 'Checklist'
+            )
+        }
+      })
+
+
+    /*
+     * CRITICAL FIX:
+     *
+     * Remove duplicate:
+     *
+     * Task Type + Plan ID + Occurrence Date
+     *
+     * This protects the calendar even if the backend
+     * has already generated Daily rows AND occurrences()
+     * expands them again.
+     */
+    return deduplicateEvents(
+      normalized
+    )
 
   }, [
     tasks,
@@ -537,11 +679,9 @@ export default function Calendar({
   ])
 
 
-  /*
-   * -------------------------------------------------------
-   * DOERS
-   * -------------------------------------------------------
-   */
+  /* =======================================================
+     DOERS
+     ======================================================= */
 
   const doers = useMemo(() => {
 
@@ -559,11 +699,9 @@ export default function Calendar({
   }, [tasks])
 
 
-  /*
-   * -------------------------------------------------------
-   * FILTER EVENTS
-   * -------------------------------------------------------
-   */
+  /* =======================================================
+     FILTER EVENTS
+     ======================================================= */
 
   const events = useMemo(() => {
 
@@ -606,20 +744,9 @@ export default function Calendar({
   ])
 
 
-  /*
-   * -------------------------------------------------------
-   * BUILD COMPLETION MAP
-   * -------------------------------------------------------
-   *
-   * OLD / WRONG:
-   *
-   *     historyMap[taskId]
-   *
-   * NEW / CORRECT:
-   *
-   *     instanceHistoryMap[planId|plannedDate]
-   *
-   */
+  /* =======================================================
+     EXACT INSTANCE HISTORY
+     ======================================================= */
 
   const instanceHistoryMap =
     useMemo(() => {
@@ -637,9 +764,9 @@ export default function Calendar({
 
 
         /*
-         * Best case:
+         * History must contain:
          *
-         * History contains Plan ID + Planned Date.
+         * Plan ID + Planned Date
          */
         if (
           planId &&
@@ -648,6 +775,7 @@ export default function Calendar({
 
           const key =
             `${planId}|${plannedDate}`
+
 
           map[key] = {
             ...h,
@@ -667,15 +795,9 @@ export default function Calendar({
     }, [history])
 
 
-  /*
-   * -------------------------------------------------------
-   * TASK-ID HISTORY FALLBACK
-   * -------------------------------------------------------
-   *
-   * Used mainly for one-time tasks and older history rows.
-   *
-   * We DO NOT use this alone for recurring occurrences.
-   */
+  /* =======================================================
+     TASK ID HISTORY FALLBACK
+     ======================================================= */
 
   const taskHistoryMap =
     useMemo(() => {
@@ -689,6 +811,7 @@ export default function Calendar({
           getTaskId(h)
 
         if (!id) return
+
 
         map[id] = {
           ...h,
@@ -707,26 +830,15 @@ export default function Calendar({
     }, [history])
 
 
-  /*
-   * -------------------------------------------------------
-   * STATUS FOR ONE EXACT OCCURRENCE
-   * -------------------------------------------------------
-   *
-   * This is the most important function in Calendar.jsx.
-   *
-   * It decides status for:
-   *
-   *     P1001|2026-09-09
-   *
-   * independently from:
-   *
-   *     P1001|2026-09-10
-   */
+  /* =======================================================
+     GET STATUS FOR EXACT OCCURRENCE
+     ======================================================= */
 
   const getOccurrenceStatus = event => {
 
     const occurrenceDate =
       getOccurrenceDate(event)
+
 
     const instanceKey =
       getInstanceKey(
@@ -735,17 +847,20 @@ export default function Calendar({
       )
 
 
-    /*
-     * 1. First priority:
-     * exact Plan ID + date history.
-     */
+    /* -----------------------------------------------------
+       1. EXACT INSTANCE
+       ----------------------------------------------------- */
+
     if (
       instanceKey &&
       instanceHistoryMap[instanceKey]
     ) {
 
       const h =
-        instanceHistoryMap[instanceKey]
+        instanceHistoryMap[
+          instanceKey
+        ]
+
 
       return normalizeStatus(
         h.status
@@ -753,14 +868,15 @@ export default function Calendar({
     }
 
 
-    /*
-     * 2. One-Time tasks can safely use
-     * their Task ID.
-     */
+    /* -----------------------------------------------------
+       2. ONE-TIME TASK
+       ----------------------------------------------------- */
+
     if (isOneTime(event)) {
 
       const taskId =
         getTaskId(event)
+
 
       if (
         taskId &&
@@ -772,6 +888,7 @@ export default function Calendar({
         )
       }
 
+
       return normalizeStatus(
         event.status ??
         event.liveStatus ??
@@ -780,26 +897,27 @@ export default function Calendar({
     }
 
 
-    /*
-     * 3. RECURRING TASK SAFETY RULE.
-     *
-     * If a recurring source task itself is marked Done,
-     * that status belongs to its own planned date.
-     *
-     * It must NOT automatically apply to future
-     * generated occurrences.
-     */
+    /* -----------------------------------------------------
+       3. RECURRING SOURCE DATE
+       ----------------------------------------------------- */
 
     const originalDate =
       getOccurrenceDate({
         ...event,
+
         occurrenceDate:
           event.plannedRaw ??
           event.plannedDate ??
-          event['Planned Date']
+          event['Planned Date'] ??
+          event.taskStartDate ??
+          event['Task Start Date']
       })
 
 
+    /*
+     * Only allow the task's own status to represent
+     * its original planned date.
+     */
     if (
       originalDate &&
       originalDate === occurrenceDate
@@ -815,45 +933,45 @@ export default function Calendar({
 
     /*
      * Future recurring occurrence:
-     * pending until THIS occurrence has
-     * its own completion record.
+     * always Pending until its own history exists.
      */
     return 'pending'
   }
 
 
-  /*
-   * -------------------------------------------------------
-   * COUNTS
-   * -------------------------------------------------------
-   */
+  /* =======================================================
+     COUNTS
+     ======================================================= */
 
   const counts = useMemo(() => {
 
     const m = {}
+
 
     events.forEach(e => {
 
       const k =
         e.occurrenceDate
 
+
       if (!m[k]) {
         m[k] = []
       }
 
-      /*
-       * Inject exact occurrence status.
-       */
+
+      const status =
+        getOccurrenceStatus(e)
+
+
       m[k].push({
         ...e,
 
-        status:
-          getOccurrenceStatus(e),
+        status,
 
-        liveStatus:
-          getOccurrenceStatus(e)
+        liveStatus: status
       })
     })
+
 
     return m
 
@@ -864,15 +982,14 @@ export default function Calendar({
   ])
 
 
-  /*
-   * -------------------------------------------------------
-   * CALENDAR GRID
-   * -------------------------------------------------------
-   */
+  /* =======================================================
+     CALENDAR GRID
+     ======================================================= */
 
   const first =
     (
-      range.start.getDay() + 6
+      range.start.getDay() +
+      6
     ) % 7
 
 
@@ -898,11 +1015,9 @@ export default function Calendar({
     ).padStart(2, '0')}`
 
 
-  /*
-   * -------------------------------------------------------
-   * ENRICH EVENT FOR MODAL
-   * -------------------------------------------------------
-   */
+  /* =======================================================
+     ENRICH EVENT FOR MODAL
+     ======================================================= */
 
   const enrichEvent = e => {
 
@@ -910,9 +1025,6 @@ export default function Calendar({
       getOccurrenceStatus(e)
 
 
-    /*
-     * Exact occurrence history.
-     */
     const instanceKey =
       getInstanceKey(
         e,
@@ -922,14 +1034,12 @@ export default function Calendar({
 
     const h =
       instanceKey
-        ? instanceHistoryMap[instanceKey]
+        ? instanceHistoryMap[
+            instanceKey
+          ]
         : null
 
 
-    /*
-     * Actual date/time ONLY comes from
-     * this exact occurrence's history.
-     */
     return {
       ...e,
 
@@ -967,16 +1077,15 @@ export default function Calendar({
   }
 
 
-  /*
-   * -------------------------------------------------------
-   * RENDER
-   * -------------------------------------------------------
-   */
+  /* =======================================================
+     RENDER
+     ======================================================= */
 
   return <>
 
     <PageHeader
       title="Calendar"
+
       subtitle="Every scheduled task, with recurring frequencies. Sundays and marked holidays are skipped — those tasks move to the next working day."
 
       action={
@@ -985,11 +1094,14 @@ export default function Calendar({
           {loading &&
             tasks.length > 0 && (
               <span className="cal-refreshing">
+
                 <RefreshCw
                   size={12}
                   className="cal-spin-i"
                 />
+
                 refreshing…
+
               </span>
             )
           }
@@ -1076,6 +1188,10 @@ export default function Calendar({
 
     ) : <>
 
+      {/* =================================================
+          FILTERS
+          ================================================= */}
+
       <div className="calendar-view-toggles">
 
         <label
@@ -1103,6 +1219,7 @@ export default function Calendar({
 
           <span>
             Show Past Tasks
+
             {!canPast && (
               <Lock size={11}/>
             )}
@@ -1136,6 +1253,7 @@ export default function Calendar({
 
           <span>
             Show Future Tasks
+
             {!canFuture && (
               <Lock size={11}/>
             )}
@@ -1145,6 +1263,7 @@ export default function Calendar({
 
 
         {canFilterDoer && (
+
           <label className="filter-field cal-doer-filter">
 
             <Users size={14}/>
@@ -1170,6 +1289,7 @@ export default function Calendar({
             </select>
 
           </label>
+
         )}
 
 
@@ -1179,6 +1299,10 @@ export default function Calendar({
 
       </div>
 
+
+      {/* =================================================
+          CALENDAR
+          ================================================= */}
 
       <div className="panel calendar-panel">
 
@@ -1233,9 +1357,11 @@ export default function Calendar({
             'Sat',
             'Sun'
           ].map(x => (
+
             <b key={x}>
               {x}
             </b>
+
           ))}
 
         </div>
@@ -1256,7 +1382,9 @@ export default function Calendar({
             }
 
 
-            const dk = key(d)
+            const dk =
+              key(d)
+
 
             const isToday =
               dk === today
@@ -1279,24 +1407,33 @@ export default function Calendar({
 
 
             return (
+
               <button
                 key={d}
 
                 className={`day-cell calendar-day ${
-                  isToday ? 'today' : ''
+                  isToday
+                    ? 'today'
+                    : ''
                 } ${
-                  isSunday ? 'holiday' : ''
+                  isSunday
+                    ? 'holiday'
+                    : ''
                 } ${
-                  occasion ? 'festival' : ''
+                  occasion
+                    ? 'festival'
+                    : ''
                 }`}
 
                 onClick={() =>
                   setSelected({
                     date: dk,
+
                     items:
                       items.map(
                         enrichEvent
                       ),
+
                     occasion
                   })
                 }
@@ -1316,13 +1453,18 @@ export default function Calendar({
 
 
                 {occasion && (
+
                   <span
                     className="cal-festival-tag"
                     title={occasion}
                   >
+
                     <PartyPopper size={9}/>
+
                     {occasion}
+
                   </span>
+
                 )}
 
 
@@ -1335,6 +1477,7 @@ export default function Calendar({
                       const e =
                         enrichEvent(x)
 
+
                       const st =
                         normalizeStatus(
                           e.status ||
@@ -1343,31 +1486,52 @@ export default function Calendar({
                         )
 
 
+                      /*
+                       * Explicit task type.
+                       *
+                       * This guarantees:
+                       *
+                       * Checklist
+                       * and
+                       * Delegation
+                       *
+                       * receive different CSS classes.
+                       */
+                      const taskType =
+                        getTaskType(e)
+
+
                       return (
+
                         <span
                           key={
-                            `${e.instanceKey || e.id}-${j}`
+                            e.instanceKey
+                              ? `${taskType}|${e.instanceKey}`
+                              : `${taskType}|${getTaskId(e)}|${e.occurrenceDate}|${j}`
                           }
 
                           className={`calendar-task-chip ${
-                            String(
-                              x.type || ''
-                            ).toLowerCase()
+                            taskType
                           } ${st}`}
 
                           title={x.title}
                         >
+
                           {x.title}
+
                         </span>
+
                       )
                     })
                   }
 
 
                   {items.length > 3 && (
+
                     <em>
                       +{items.length - 3} more
                     </em>
+
                   )}
 
                 </div>
@@ -1380,6 +1544,10 @@ export default function Calendar({
 
       </div>
 
+
+      {/* =================================================
+          SUMMARY
+          ================================================= */}
 
       <div className="panel calendar-summary">
 
@@ -1402,10 +1570,12 @@ export default function Calendar({
           onClick={() =>
             setSelected({
               date: today,
+
               items:
                 (
                   counts[today] || []
                 ).map(enrichEvent),
+
               occasion:
                 holMap[today]
             })
@@ -1419,10 +1589,15 @@ export default function Calendar({
     </>}
 
 
+    {/* =====================================================
+        MODAL
+        ===================================================== */}
+
     {selected && (
 
       <div
         className="modal-backdrop"
+
         onClick={() =>
           setSelected(null)
         }
@@ -1430,6 +1605,7 @@ export default function Calendar({
 
         <section
           className="calendar-modal"
+
           onClick={e =>
             e.stopPropagation()
           }
@@ -1440,6 +1616,7 @@ export default function Calendar({
             <div>
 
               <h2>
+
                 {new Date(
                   selected.date +
                   'T00:00:00'
@@ -1452,6 +1629,7 @@ export default function Calendar({
                     year: 'numeric'
                   }
                 )}
+
               </h2>
 
               <p>
@@ -1475,6 +1653,10 @@ export default function Calendar({
           </div>
 
 
+          {/* =================================================
+              HOLIDAY BANNER
+              ================================================= */}
+
           {selected.occasion && (
 
             <div className="holiday-banner">
@@ -1490,12 +1672,18 @@ export default function Calendar({
               working day.
 
             </div>
+
           )}
 
+
+          {/* =================================================
+              DETAIL CARDS
+              ================================================= */}
 
           <div className="calendar-card-stack">
 
             {selected.items.length
+
               ? selected.items.map((x, i) => {
 
                   const st =
@@ -1504,6 +1692,10 @@ export default function Calendar({
                       x.liveStatus ||
                       'pending'
                     )
+
+
+                  const taskType =
+                    getTaskType(x)
 
 
                   const isDoneOrDelay =
@@ -1523,22 +1715,24 @@ export default function Calendar({
 
                     <div
                       className={`calendar-detail-card ${
-                        String(
-                          x.type || ''
-                        ).toLowerCase()
+                        taskType
                       } ${st}`}
 
                       key={
-                        x.instanceKey ||
-                        `${getTaskId(x)}-${x.occurrenceDate}-${i}`
+                        x.instanceKey
+                          ? `${taskType}|${x.instanceKey}`
+                          : `${taskType}|${getTaskId(x)}-${x.occurrenceDate}-${i}`
                       }
                     >
 
                       <div className="calendar-card-icon">
 
-                        {x.type === 'Checklist'
+                        {taskType === 'checklist'
+
                           ? <CheckSquare size={16}/>
+
                           : <Users size={16}/>
+
                         }
 
                       </div>
@@ -1550,12 +1744,25 @@ export default function Calendar({
                           {x.title}
                         </b>
 
+
                         <span>
-                          {x.type}
+
+                          {taskType ===
+                            'delegation'
+                            ? 'Delegation'
+                            : 'Checklist'
+                          }
+
                           {' · '}
-                          {x.assignee || 'Unassigned'}
+
+                          {x.assignee ||
+                            'Unassigned'
+                          }
+
                           {' · '}
+
                           {x.frequency}
+
                         </span>
 
 
@@ -1582,12 +1789,14 @@ export default function Calendar({
                         <strong
                           className={`cal-status-badge ${st}`}
                         >
+
                           {st === 'done'
                             ? 'Done'
                             : st === 'delay'
                               ? 'Delay'
                               : 'Pending'
                           }
+
                         </strong>
 
 
